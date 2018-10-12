@@ -1,0 +1,4 @@
+ndb-rolling-restart
+*.o
+*~
+*.old
