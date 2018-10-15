@@ -1,1 +1,3 @@
-Loosely based on storage/ndb/test/src/NdbRestarter.cpp
+This is in early experimental stage, not ready for use.
+
+Very loosely based on storage/ndb/test/src/NdbRestarter.cpp
