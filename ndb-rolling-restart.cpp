@@ -109,12 +109,18 @@ int restart_node(Ndb_cluster_connection* cluster_connection,
         return 1;
     }
 
-    cout << "wait_until_ready node " << nodes[0]
-         << " timeout: " << wait_seconds << endl;
-    cluster_connection->wait_until_ready(nodes, cnt, wait_seconds);
-    if (ret <= 0) {
-        cerr << "ndb_mgm_restart4 returned error: " << ret << endl;
-        return 1;
+    ret = -1;
+    while (ret == -1) {
+        cout << "wait_until_ready node " << nodes[0]
+             << " timeout: " << wait_seconds << endl;
+        ret = cluster_connection->wait_until_ready(nodes, cnt, wait_seconds);
+        if (ret < -1) {
+            cerr << "ndb_mgm_restart4 returned error: " << ret << endl;
+            return 1;
+        } else {
+            cout << "sleep(" << wait_seconds << ")" << endl;
+            sleep(wait_seconds);
+        }
     }
 
     cout << "restart node " << nodes[0] << " complete" << endl;
