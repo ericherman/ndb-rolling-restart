@@ -2,7 +2,7 @@
 # static build is not working :-(
 #
 
-MYSQL_NDB_DIR=/home/eric/builds/mysql-cluster-7.6
+MYSQL_NDB_DIR=$(HOME)/builds/mysql-cluster-7.6
 NDB_CXX_STD=--std=c++11
 
 CXX_INCLUDES=-I$(MYSQL_NDB_DIR)/include/storage/ndb
@@ -12,15 +12,17 @@ CXX=/usr/bin/c++
 FORMAT=clang-format-6.0 --style=WebKit
 
 
-NDB_LDFLAGS_DYNAMIC=-fsanitize=address \
-        -rdynamic \
+NDB_LDFLAGS_DYNAMIC=\
+	-static-libasan \
+	-fsanitize=address \
+	-rdynamic \
 	$(MYSQL_NDB_DIR)/lib/libndbclient.so \
 	-L$(MYSQL_NDB_DIR)/lib \
 	-Wl,-rpath,$(MYSQL_NDB_DIR)/lib
 NDB_LD_ADD_DYNAMIC=-lndbclient
 
 
-NDB_LDFLAGS_STATIC=-static \
+NDB_LDFLAGS_STATIC=-static -static-libasan \
 	$(MYSQL_NDB_DIR)/lib/libndbclient_static.a
 NDB_LD_ADD_STATIC=
 
