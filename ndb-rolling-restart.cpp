@@ -31,7 +31,7 @@ struct ndb_connection_context_s {
     struct ndb_mgm_cluster_state* cluster_state;
 };
 
-void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
+static void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
 {
     assert(ndb_ctx);
 
@@ -51,7 +51,7 @@ void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
     }
 }
 
-Ndb_cluster_connection* ndb_connect(const char* connect_string,
+static Ndb_cluster_connection* ndb_connect(const char* connect_string,
     unsigned wait_seconds)
 {
     Ndb_cluster_connection* cluster_connection;
@@ -80,7 +80,7 @@ Ndb_cluster_connection* ndb_connect(const char* connect_string,
     return cluster_connection;
 }
 
-int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
+static int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
 {
     assert(ndb_ctx);
 
@@ -132,7 +132,8 @@ int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
     return 0;
 }
 
-const string get_ndb_mgm_dump_state(struct ndb_connection_context_s* ndb_ctx,
+static const string get_ndb_mgm_dump_state(
+    struct ndb_connection_context_s* ndb_ctx,
     struct ndb_mgm_node_state* node_state)
 {
     assert(node_state);
@@ -157,7 +158,7 @@ const string get_ndb_mgm_dump_state(struct ndb_connection_context_s* ndb_ctx,
     return "ok";
 }
 
-int get_online_node_count(struct ndb_connection_context_s* ndb_ctx)
+static int get_online_node_count(struct ndb_connection_context_s* ndb_ctx)
 {
     int online_nodes = 0;
 
@@ -174,7 +175,7 @@ int get_online_node_count(struct ndb_connection_context_s* ndb_ctx)
     return online_nodes;
 }
 
-void sleep_reconnect(struct ndb_connection_context_s* ndb_ctx)
+static void sleep_reconnect(struct ndb_connection_context_s* ndb_ctx)
 {
     close_ndb_connection(ndb_ctx);
     cout << "sleep(" << ndb_ctx->wait_seconds << ")" << endl;
@@ -186,7 +187,8 @@ void sleep_reconnect(struct ndb_connection_context_s* ndb_ctx)
     }
 }
 
-int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx, int node_id)
+static int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx,
+    int node_id)
 {
 
     assert(ndb_ctx->connection);
@@ -209,7 +211,7 @@ int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
-int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
+static int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
 {
     assert(ndb_ctx);
 
@@ -248,7 +250,7 @@ int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
-int* get_node_ids(struct ndb_connection_context_s* ndb_ctx, size_t* len)
+static int* get_node_ids(struct ndb_connection_context_s* ndb_ctx, size_t* len)
 {
     assert(ndb_ctx);
     assert(len);
@@ -279,7 +281,7 @@ int* get_node_ids(struct ndb_connection_context_s* ndb_ctx, size_t* len)
     return node_ids;
 }
 
-void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
+static void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
 {
     const char* cluster_name = ndb_ctx->connection->get_system_name();
     cout << "cluster_name: " << cluster_name << endl;
