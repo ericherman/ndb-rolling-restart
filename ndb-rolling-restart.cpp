@@ -248,6 +248,37 @@ int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
+int* get_node_ids(struct ndb_connection_context_s* ndb_ctx, size_t* len)
+{
+    assert(ndb_ctx);
+    assert(len);
+    *len = 0;
+
+    int number_of_nodes = ndb_ctx->cluster_state->no_of_nodes;
+    if (number_of_nodes < 1) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": cluster_state->no_of_nodes == " << number_of_nodes
+             << " ?" << endl;
+        return nullptr;
+    }
+    size_t size = sizeof(int) * number_of_nodes;
+    int* node_ids = (int*)malloc(size);
+    if (!node_ids) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": could not allocate " << size << " bytes?" << endl;
+        return nullptr;
+    }
+    *len = number_of_nodes;
+
+    for (int i = 0; i < number_of_nodes; ++i) {
+        struct ndb_mgm_node_state* node_state;
+        node_state = &(ndb_ctx->cluster_state->node_states[i]);
+        node_ids[i] = node_state->node_id;
+    }
+
+    return node_ids;
+}
+
 void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
 {
     const char* cluster_name = ndb_ctx->connection->get_system_name();
@@ -296,7 +327,6 @@ int main(int argc, char** argv)
 {
     ndb_init();
 
-    size_t size;
     struct ndb_connection_context_s ndb_ctx;
 
     ndb_ctx.connect_string = argc > 1 ? argv[1] : "";
@@ -312,28 +342,22 @@ int main(int argc, char** argv)
 
     report_cluster_state(&ndb_ctx);
 
-    int number_of_nodes = ndb_ctx.cluster_state->no_of_nodes;
-
-    size = sizeof(int) * number_of_nodes;
-    int* node_ids = (int*)malloc(size);
+    size_t number_of_nodes;
+    int* node_ids = get_node_ids(&ndb_ctx, &number_of_nodes);
     if (!node_ids) {
         cerr << __FILE__ << ":" << __LINE__
-             << ": could not allocate " << size << " bytes?" << endl;
+             << ": get_node_ids returned NULL" << endl;
         close_ndb_connection(&ndb_ctx);
         return 1;
     }
-    for (int i = 0; i < number_of_nodes; ++i) {
-        struct ndb_mgm_node_state* node_state;
-        node_state = &(ndb_ctx.cluster_state->node_states[i]);
-        node_ids[i] = node_state->node_id;
-    }
 
-    for (int i = 0; i < number_of_nodes; ++i) {
+    for (size_t i = 0; i < number_of_nodes; ++i) {
         restart_node(&ndb_ctx, node_ids[i]);
     }
+    free(node_ids);
 
     report_cluster_state(&ndb_ctx);
-    free(node_ids);
+
     close_ndb_connection(&ndb_ctx);
     ndb_end(NDB_NORMAL_USER);
     return 0;
