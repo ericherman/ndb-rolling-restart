@@ -132,10 +132,10 @@ static int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
     return 0;
 }
 
-static const string get_ndb_mgm_dump_state(
-    struct ndb_connection_context_s* ndb_ctx,
+static const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
     struct ndb_mgm_node_state* node_state)
 {
+    assert(ndb_mgm_handle);
     assert(node_state);
 
     int arg_count = 1;
@@ -145,8 +145,7 @@ static const string get_ndb_mgm_dump_state(
     int node_id = node_state->node_id;
     int rv;
 
-    rv = ndb_mgm_dump_state(ndb_ctx->ndb_mgm_handle, node_id, args, arg_count,
-        &reply);
+    rv = ndb_mgm_dump_state(ndb_mgm_handle, node_id, args, arg_count, &reply);
     if (rv == -1) {
         return "error: Could not dump state";
     }
@@ -158,15 +157,14 @@ static const string get_ndb_mgm_dump_state(
     return "ok";
 }
 
-static int get_online_node_count(struct ndb_connection_context_s* ndb_ctx)
+static int get_online_node_count(struct ndb_mgm_cluster_state* cluster_state)
 {
     int online_nodes = 0;
 
-    assert(ndb_ctx);
-    assert(ndb_ctx->cluster_state);
-    for (int i = 0; i < ndb_ctx->cluster_state->no_of_nodes; ++i) {
+    assert(cluster_state);
+    for (int i = 0; i < cluster_state->no_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
-        node_state = &(ndb_ctx->cluster_state->node_states[i]);
+        node_state = &(cluster_state->node_states[i]);
         if (node_state->node_status == NDB_MGM_NODE_STATUS_STARTED) {
             ++online_nodes;
         }
@@ -250,13 +248,14 @@ static int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
-static int* get_node_ids(struct ndb_connection_context_s* ndb_ctx, size_t* len)
+static int* get_node_ids(struct ndb_mgm_cluster_state* cluster_state,
+    size_t* len)
 {
-    assert(ndb_ctx);
+    assert(cluster_state);
     assert(len);
     *len = 0;
 
-    int number_of_nodes = ndb_ctx->cluster_state->no_of_nodes;
+    int number_of_nodes = cluster_state->no_of_nodes;
     if (number_of_nodes < 1) {
         cerr << __FILE__ << ":" << __LINE__
              << ": cluster_state->no_of_nodes == " << number_of_nodes
@@ -274,7 +273,7 @@ static int* get_node_ids(struct ndb_connection_context_s* ndb_ctx, size_t* len)
 
     for (int i = 0; i < number_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
-        node_state = &(ndb_ctx->cluster_state->node_states[i]);
+        node_state = &(cluster_state->node_states[i]);
         node_ids[i] = node_state->node_id;
     }
 
@@ -283,6 +282,10 @@ static int* get_node_ids(struct ndb_connection_context_s* ndb_ctx, size_t* len)
 
 static void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
 {
+    assert(ndb_ctx);
+    assert(ndb_ctx->connection);
+    assert(ndb_ctx->cluster_state);
+
     const char* cluster_name = ndb_ctx->connection->get_system_name();
     cout << "cluster_name: " << cluster_name << endl;
     cout << "cluster_state->no_of_nodes: "
@@ -313,10 +316,11 @@ static void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
              << "\tconnect_count: " << node_state->connect_count << endl
              << "\tconnect_address: " << node_state->connect_address << endl
              << "\tndb_mgm_dump_state: "
-             << get_ndb_mgm_dump_state(ndb_ctx, node_state) << endl;
+             << get_ndb_mgm_dump_state(ndb_ctx->ndb_mgm_handle, node_state)
+             << endl;
     }
 
-    int online_nodes = get_online_node_count(ndb_ctx);
+    int online_nodes = get_online_node_count(ndb_ctx->cluster_state);
 
     int offline_nodes = (ndb_ctx->cluster_state->no_of_nodes - online_nodes);
 
@@ -345,7 +349,7 @@ int main(int argc, char** argv)
     report_cluster_state(&ndb_ctx);
 
     size_t number_of_nodes = 0;
-    int* node_ids = get_node_ids(&ndb_ctx, &number_of_nodes);
+    int* node_ids = get_node_ids(ndb_ctx.cluster_state, &number_of_nodes);
     if (!node_ids) {
         cerr << __FILE__ << ":" << __LINE__
              << ": get_node_ids returned NULL" << endl;
