@@ -83,44 +83,14 @@ int get_online_node_count(struct ndb_mgm_cluster_state* cluster_state)
     return online_nodes;
 }
 
-int restart_node(Ndb_cluster_connection* cluster_connection,
-    NdbMgmHandle ndb_mgm_handle,
-    struct ndb_mgm_node_state* node_state,
-    unsigned wait_seconds)
+int loop_wait_until_ready(Ndb_cluster_connection* cluster_connection, int node_id, unsigned wait_seconds)
 {
     assert(cluster_connection);
-    assert(ndb_mgm_handle);
-    assert(node_state);
 
-    int ret = 0;
-    int disconnect = 0;
     int cnt = 1;
-    int nodes[1] = { node_state->node_id };
-    int initial = 0;
-    int nostart = 0;
-    int abort = 0;
-    int force = 0;
+    int nodes[cnt] = { node_id };
 
-    cout << "ndb_mgm_restart4 node " << nodes[0] << endl;
-
-    ret = -1;
-    while (ret <= 0) {
-        ret = ndb_mgm_restart4(ndb_mgm_handle, cnt, nodes, initial, nostart,
-            abort, force, &disconnect);
-        if (ret <= 0) {
-            cerr << "ndb_mgm_restart4 node " << nodes[0]
-                 << " returned error: " << ret << endl;
-            cout << "sleep(" << wait_seconds << ")" << endl;
-            sleep(wait_seconds);
-        }
-    }
-    if (disconnect) {
-        cerr << "ndb_mgm_restart4 node " << nodes[0]
-             << " returned disconnect: " << disconnect << "?" << endl;
-        return 1;
-    }
-
-    ret = -1;
+    int ret = -1;
     while (ret == -1) {
         cout << "wait_until_ready node " << nodes[0]
              << " timeout: " << wait_seconds << endl;
@@ -133,6 +103,50 @@ int restart_node(Ndb_cluster_connection* cluster_connection,
             sleep(wait_seconds);
         }
     }
+    return 0;
+}
+
+int restart_node(Ndb_cluster_connection* cluster_connection,
+    NdbMgmHandle ndb_mgm_handle,
+    struct ndb_mgm_node_state* node_state,
+    unsigned wait_seconds)
+{
+    assert(cluster_connection);
+    assert(ndb_mgm_handle);
+    assert(node_state);
+
+    int ret = 0;
+    int disconnect = 0;
+    int cnt = 1;
+    int nodes[cnt] = { node_state->node_id };
+    int initial = 0;
+    int nostart = 0;
+    int abort = 0;
+    int force = 0;
+
+    cout << "ndb_mgm_restart4 node " << nodes[0] << endl;
+
+    loop_wait_until_ready(cluster_connection, nodes[0], wait_seconds);
+
+    ret = -1;
+    while (ret <= 0) {
+        ret = ndb_mgm_restart4(ndb_mgm_handle, cnt, nodes, initial, nostart,
+            abort, force, &disconnect);
+        if (ret <= 0) {
+            cerr << "ndb_mgm_restart4 node " << nodes[0]
+                 << " returned error: " << ret << endl;
+            cout << "sleep(" << wait_seconds << ")" << endl;
+            sleep(wait_seconds);
+        }
+    }
+
+    if (disconnect) {
+        cerr << "ndb_mgm_restart4 node " << nodes[0]
+             << " returned disconnect: " << disconnect << "?" << endl;
+        return 1;
+    }
+
+    loop_wait_until_ready(cluster_connection, nodes[0], wait_seconds);
 
     cout << "restart node " << nodes[0] << " complete" << endl;
     return 0;
@@ -209,7 +223,12 @@ int main(int argc, char** argv)
     cout << "cluster_name: " << cluster_name << endl;
 
     NdbMgmHandle ndb_mgm_handle = ndb_mgm_create_handle();
-    if (ndb_mgm_connect(ndb_mgm_handle, 3, 1, 1) != 0) {
+    int no_retries = 3;
+    int retry_delay_secs = 1;
+    int verbose = 1;
+    int ret = ndb_mgm_connect(ndb_mgm_handle, no_retries, retry_delay_secs,
+        verbose);
+    if (ret != 0) {
         cout << "Error: "
              << ndb_mgm_get_latest_error_msg(ndb_mgm_handle)
              << endl;
