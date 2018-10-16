@@ -102,12 +102,17 @@ int restart_node(Ndb_cluster_connection* cluster_connection,
     int force = 0;
 
     cout << "ndb_mgm_restart4 node " << nodes[0] << endl;
-    ret = ndb_mgm_restart4(ndb_mgm_handle, cnt, nodes, initial, nostart,
-        abort, force, &disconnect);
-    if (ret <= 0) {
-        cerr << "ndb_mgm_restart4 node " << nodes[0]
-             << " returned error: " << ret << endl;
-        return 1;
+
+    ret = -1;
+    while (ret <= 0) {
+        ret = ndb_mgm_restart4(ndb_mgm_handle, cnt, nodes, initial, nostart,
+            abort, force, &disconnect);
+        if (ret <= 0) {
+            cerr << "ndb_mgm_restart4 node " << nodes[0]
+                 << " returned error: " << ret << endl;
+            cout << "sleep(" << wait_seconds << ")" << endl;
+            sleep(wait_seconds);
+        }
     }
     if (disconnect) {
         cerr << "ndb_mgm_restart4 node " << nodes[0]
