@@ -1,17 +1,23 @@
-#include <algorithm>
-#include <arpa/inet.h>
+/*
+ * ndb-rolling-restart
+ * Copyright (C) 2018 Eric Herman <eric@freesa.org>
+ *
+ * This work is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This work is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+*/
+
 #include <assert.h>
-#include <chrono>
 #include <iostream>
 #include <mgmapi/mgmapi.h>
-#include <mgmapi/mgmapi_debug.h>
-#include <mutex>
 #include <ndbapi/NdbApi.hpp>
-#include <netdb.h>
-#include <sys/socket.h>
 #include <unistd.h>
-#define DBACC 0xF8
-#define DBTUP 0xF9
 
 using namespace std;
 
