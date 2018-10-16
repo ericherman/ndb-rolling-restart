@@ -84,7 +84,8 @@ int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
 {
     assert(ndb_ctx);
 
-    ndb_ctx->connection = ndb_connect(ndb_ctx->connect_string, ndb_ctx->wait_seconds);
+    ndb_ctx->connection = ndb_connect(ndb_ctx->connect_string,
+        ndb_ctx->wait_seconds);
     if (!ndb_ctx->connection) {
         return 1;
     }
@@ -143,7 +144,8 @@ const string get_ndb_mgm_dump_state(struct ndb_connection_context_s* ndb_ctx,
     int node_id = node_state->node_id;
     int rv;
 
-    rv = ndb_mgm_dump_state(ndb_ctx->ndb_mgm_handle, node_id, args, arg_count, &reply);
+    rv = ndb_mgm_dump_state(ndb_ctx->ndb_mgm_handle, node_id, args, arg_count,
+        &reply);
     if (rv == -1) {
         return "error: Could not dump state";
     }
@@ -226,8 +228,8 @@ int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
 
     ret = -1;
     while (ret <= 0) {
-        ret = ndb_mgm_restart4(ndb_ctx->ndb_mgm_handle, cnt, nodes, initial, nostart,
-            abort, force, &disconnect);
+        ret = ndb_mgm_restart4(ndb_ctx->ndb_mgm_handle, cnt, nodes, initial,
+            nostart, abort, force, &disconnect);
         if (ret <= 0) {
             cerr << __FILE__ << ":" << __LINE__
                  << ": ndb_mgm_restart4 node " << nodes[0]
