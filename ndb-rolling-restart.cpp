@@ -11,7 +11,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
-*/
+ */
 
 #include <assert.h>
 #include <iostream>
@@ -21,7 +21,117 @@
 
 using namespace std;
 
-const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
+#define NDB_NORMAL_USER 0
+
+struct ndb_connection_context_s {
+    const char* connect_string;
+    unsigned wait_seconds;
+    Ndb_cluster_connection* connection;
+    NdbMgmHandle ndb_mgm_handle; /* a ptr */
+    struct ndb_mgm_cluster_state* cluster_state;
+};
+
+void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
+{
+    assert(ndb_ctx);
+
+    if (ndb_ctx->cluster_state) {
+        free((void*)ndb_ctx->cluster_state);
+        ndb_ctx->cluster_state = nullptr;
+    }
+
+    if (ndb_ctx->ndb_mgm_handle) {
+        ndb_mgm_destroy_handle(&(ndb_ctx->ndb_mgm_handle));
+        ndb_ctx->ndb_mgm_handle = nullptr;
+    }
+
+    if (ndb_ctx->connection) {
+        delete (ndb_ctx->connection);
+        ndb_ctx->connection = nullptr;
+    }
+}
+
+Ndb_cluster_connection* ndb_connect(const char* connect_string,
+    unsigned wait_seconds)
+{
+    Ndb_cluster_connection* cluster_connection;
+
+    cluster_connection = new Ndb_cluster_connection(connect_string);
+    if (!cluster_connection) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": new Ndb_cluster_connection() returned 0" << endl;
+        return nullptr;
+    }
+
+    int no_retries = 10;
+    int retry_delay_in_seconds = wait_seconds;
+    int verbose = 1;
+    cluster_connection->connect(no_retries, retry_delay_in_seconds, verbose);
+
+    int before_wait = wait_seconds;
+    int after_wait = wait_seconds;
+    if (cluster_connection->wait_until_ready(before_wait, after_wait) < 0) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": Cluster was not ready within "
+             << wait_seconds << " seconds" << endl;
+        delete (cluster_connection);
+        return nullptr;
+    }
+    return cluster_connection;
+}
+
+int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
+{
+    assert(ndb_ctx);
+
+    ndb_ctx->connection = ndb_connect(ndb_ctx->connect_string, ndb_ctx->wait_seconds);
+    if (!ndb_ctx->connection) {
+        return 1;
+    }
+
+    ndb_ctx->ndb_mgm_handle = ndb_mgm_create_handle();
+    if (!ndb_ctx->ndb_mgm_handle) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": Error: ndb_mgm_create_handle returned null?" << endl;
+        close_ndb_connection(ndb_ctx);
+        return 1;
+    }
+
+    int no_retries = 10;
+    int retry_delay_secs = 3;
+    int verbose = 1;
+
+    int ret = ndb_mgm_connect(ndb_ctx->ndb_mgm_handle, no_retries,
+        retry_delay_secs, verbose);
+
+    if (ret != 0) {
+        cerr << __FILE__ << ":" << __LINE__ << ": Error: "
+             << ndb_mgm_get_latest_error_msg(ndb_ctx->ndb_mgm_handle)
+             << endl;
+        close_ndb_connection(ndb_ctx);
+        return 1;
+    }
+
+    ndb_mgm_node_type node_types[2] = {
+        /* NDB_MGM_NODE_TYPE_MGM, */ /* SKIP management server node */
+        NDB_MGM_NODE_TYPE_NDB, /* database node, what we actually want */
+        NDB_MGM_NODE_TYPE_UNKNOWN /* weird */
+    };
+
+    ndb_ctx->cluster_state = ndb_mgm_get_status2(ndb_ctx->ndb_mgm_handle,
+        node_types);
+
+    if (!ndb_ctx->cluster_state) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": Error: ndb_mgm_get_status2 returned null?" << endl;
+        close_ndb_connection(ndb_ctx);
+        return 1;
+    }
+
+    return 0;
+}
+
+const string get_ndb_mgm_dump_state(struct ndb_connection_context_s* ndb_ctx,
     struct ndb_mgm_node_state* node_state)
 {
     assert(node_state);
@@ -33,7 +143,7 @@ const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
     int node_id = node_state->node_id;
     int rv;
 
-    rv = ndb_mgm_dump_state(ndb_mgm_handle, node_id, args, arg_count, &reply);
+    rv = ndb_mgm_dump_state(ndb_ctx->ndb_mgm_handle, node_id, args, arg_count, &reply);
     if (rv == -1) {
         return "error: Could not dump state";
     }
@@ -45,36 +155,15 @@ const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
     return "ok";
 }
 
-Ndb_cluster_connection* ndb_connect(const char* connect_string,
-    unsigned wait_seconds)
+int get_online_node_count(struct ndb_connection_context_s* ndb_ctx)
 {
-    Ndb_cluster_connection* cluster_connection;
-
-    cluster_connection = new Ndb_cluster_connection(connect_string);
-    if (!cluster_connection) {
-        cerr << "new Ndb_cluster_connection() returned 0" << endl;
-        return nullptr;
-    }
-
-    cluster_connection->connect(2, 5, 1);
-
-    if (cluster_connection->wait_until_ready(wait_seconds, 0) < 0) {
-        cerr << "Cluster was not ready within "
-             << wait_seconds << " seconds" << endl;
-        return nullptr;
-    }
-    return cluster_connection;
-}
-
-int get_online_node_count(struct ndb_mgm_cluster_state* cluster_state)
-{
-    assert(cluster_state);
-
     int online_nodes = 0;
 
-    for (int i = 0; i < cluster_state->no_of_nodes; ++i) {
+    assert(ndb_ctx);
+    assert(ndb_ctx->cluster_state);
+    for (int i = 0; i < ndb_ctx->cluster_state->no_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
-        node_state = &(cluster_state->node_states[i]);
+        node_state = &(ndb_ctx->cluster_state->node_states[i]);
         if (node_state->node_status == NDB_MGM_NODE_STATUS_STARTED) {
             ++online_nodes;
         }
@@ -83,9 +172,22 @@ int get_online_node_count(struct ndb_mgm_cluster_state* cluster_state)
     return online_nodes;
 }
 
-int loop_wait_until_ready(Ndb_cluster_connection* cluster_connection, int node_id, unsigned wait_seconds)
+void sleep_reconnect(struct ndb_connection_context_s* ndb_ctx)
 {
-    assert(cluster_connection);
+    close_ndb_connection(ndb_ctx);
+    cout << "sleep(" << ndb_ctx->wait_seconds << ")" << endl;
+    sleep(ndb_ctx->wait_seconds);
+    int err = init_ndb_connection(ndb_ctx);
+    if (err) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": Error reconnecting to ndb" << endl;
+    }
+}
+
+int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx, int node_id)
+{
+
+    assert(ndb_ctx->connection);
 
     int cnt = 1;
     int nodes[1] = { node_id };
@@ -93,32 +195,26 @@ int loop_wait_until_ready(Ndb_cluster_connection* cluster_connection, int node_i
     int ret = -1;
     while (ret == -1) {
         cout << "wait_until_ready node " << nodes[0]
-             << " timeout: " << wait_seconds << endl;
-        ret = cluster_connection->wait_until_ready(nodes, cnt, wait_seconds);
-        if (ret < -1) {
-            cerr << "ndb_mgm_restart4 returned error: " << ret << endl;
-            return 1;
-        } else {
-            cout << "sleep(" << wait_seconds << ")" << endl;
-            sleep(wait_seconds);
+             << " timeout: " << ndb_ctx->wait_seconds << endl;
+        ret = ndb_ctx->connection->wait_until_ready(nodes, cnt,
+            ndb_ctx->wait_seconds);
+        if (ret <= -1) {
+            cerr << __FILE__ << ":" << __LINE__
+                 << ": ndb_mgm_restart4 returned error: " << ret << endl;
+            sleep_reconnect(ndb_ctx);
         }
     }
     return 0;
 }
 
-int restart_node(Ndb_cluster_connection* cluster_connection,
-    NdbMgmHandle ndb_mgm_handle,
-    struct ndb_mgm_node_state* node_state,
-    unsigned wait_seconds)
+int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
 {
-    assert(cluster_connection);
-    assert(ndb_mgm_handle);
-    assert(node_state);
+    assert(ndb_ctx);
 
     int ret = 0;
     int disconnect = 0;
     int cnt = 1;
-    int nodes[1] = { node_state->node_id };
+    int nodes[1] = { node_id };
     int initial = 0;
     int nostart = 0;
     int abort = 0;
@@ -126,48 +222,42 @@ int restart_node(Ndb_cluster_connection* cluster_connection,
 
     cout << "ndb_mgm_restart4 node " << nodes[0] << endl;
 
-    loop_wait_until_ready(cluster_connection, nodes[0], wait_seconds);
+    loop_wait_until_ready(ndb_ctx, nodes[0]);
 
     ret = -1;
     while (ret <= 0) {
-        ret = ndb_mgm_restart4(ndb_mgm_handle, cnt, nodes, initial, nostart,
+        ret = ndb_mgm_restart4(ndb_ctx->ndb_mgm_handle, cnt, nodes, initial, nostart,
             abort, force, &disconnect);
         if (ret <= 0) {
-            cerr << "ndb_mgm_restart4 node " << nodes[0]
+            cerr << __FILE__ << ":" << __LINE__
+                 << ": ndb_mgm_restart4 node " << nodes[0]
                  << " returned error: " << ret << endl;
-            cout << "sleep(" << wait_seconds << ")" << endl;
-            sleep(wait_seconds);
+            cout << "sleep(" << ndb_ctx->wait_seconds << ")" << endl;
+            sleep_reconnect(ndb_ctx);
         }
     }
 
     if (disconnect) {
-        cerr << "ndb_mgm_restart4 node " << nodes[0]
-             << " returned disconnect: " << disconnect << "?" << endl;
-        return 1;
+        sleep(ndb_ctx->wait_seconds);
     }
 
-    loop_wait_until_ready(cluster_connection, nodes[0], wait_seconds);
+    loop_wait_until_ready(ndb_ctx, nodes[0]);
 
     cout << "restart node " << nodes[0] << " complete" << endl;
     return 0;
 }
 
-void report_cluster_state(NdbMgmHandle ndb_mgm_handle,
-    ndb_mgm_node_type* node_types)
+void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
 {
-    assert(ndb_mgm_handle);
-    assert(node_types);
+    const char* cluster_name = ndb_ctx->connection->get_system_name();
+    cout << "cluster_name: " << cluster_name << endl;
+    cout << "cluster_state->no_of_nodes: "
+         << ndb_ctx->cluster_state->no_of_nodes << endl;
 
-    struct ndb_mgm_cluster_state* cluster_state;
-    cluster_state = ndb_mgm_get_status2(ndb_mgm_handle, node_types);
-
-    cout << "cluster_state->no_of_nodes: " << cluster_state->no_of_nodes
-         << endl;
-
-    for (int i = 0; i < cluster_state->no_of_nodes; ++i) {
+    for (int i = 0; i < ndb_ctx->cluster_state->no_of_nodes; ++i) {
 
         struct ndb_mgm_node_state* node_state;
-        node_state = &(cluster_state->node_states[i]);
+        node_state = &(ndb_ctx->cluster_state->node_states[i]);
 
         cout << "node_id: " << node_state->node_id << " ("
              << ndb_mgm_get_node_type_string(node_state->node_type) << ")"
@@ -189,89 +279,61 @@ void report_cluster_state(NdbMgmHandle ndb_mgm_handle,
              << "\tconnect_count: " << node_state->connect_count << endl
              << "\tconnect_address: " << node_state->connect_address << endl
              << "\tndb_mgm_dump_state: "
-             << get_ndb_mgm_dump_state(ndb_mgm_handle, node_state)
-             << endl;
+             << get_ndb_mgm_dump_state(ndb_ctx, node_state) << endl;
     }
 
-    int online_nodes = get_online_node_count(cluster_state);
+    int online_nodes = get_online_node_count(ndb_ctx);
 
-    int offline_nodes = (cluster_state->no_of_nodes - online_nodes);
+    int offline_nodes = (ndb_ctx->cluster_state->no_of_nodes - online_nodes);
 
-    cout << "no_of_nodes: " << cluster_state->no_of_nodes << endl
+    cout << "no_of_nodes: " << ndb_ctx->cluster_state->no_of_nodes << endl
          << "online_nodes: " << online_nodes << endl
          << "offline_nodes: " << offline_nodes << endl;
-
-    free((void*)cluster_state);
 }
 
 int main(int argc, char** argv)
 {
-    const char* connect_string;
-    unsigned wait_seconds = 30;
-
-    connect_string = argc > 1 ? argv[1] : "";
     ndb_init();
 
-    Ndb_cluster_connection* cluster_connection;
+    size_t size;
+    struct ndb_connection_context_s ndb_ctx;
 
-    cluster_connection = ndb_connect(connect_string, wait_seconds);
-    if (!cluster_connection) {
-        return 1;
-    }
+    ndb_ctx.connect_string = argc > 1 ? argv[1] : "";
+    ndb_ctx.wait_seconds = 30;
 
-    const char* cluster_name = cluster_connection->get_system_name();
-    cout << "cluster_name: " << cluster_name << endl;
-
-    NdbMgmHandle ndb_mgm_handle = ndb_mgm_create_handle();
-    int no_retries = 3;
-    int retry_delay_secs = 1;
-    int verbose = 1;
-    int ret = ndb_mgm_connect(ndb_mgm_handle, no_retries, retry_delay_secs,
-        verbose);
-    if (ret != 0) {
-        cout << "Error: "
-             << ndb_mgm_get_latest_error_msg(ndb_mgm_handle)
+    int err = init_ndb_connection(&ndb_ctx);
+    if (err) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": error connecting to ndb '" << ndb_ctx.connect_string << "'"
              << endl;
         return 1;
     }
 
-    ndb_mgm_node_type node_types[2] = {
-        /* NDB_MGM_NODE_TYPE_MGM, */ /* SKIP management server node */
-        NDB_MGM_NODE_TYPE_NDB, /* database node, what we actually want */
-        NDB_MGM_NODE_TYPE_UNKNOWN /* weird */
-    };
+    report_cluster_state(&ndb_ctx);
 
-    report_cluster_state(ndb_mgm_handle, node_types);
+    int number_of_nodes = ndb_ctx.cluster_state->no_of_nodes;
 
-    struct ndb_mgm_cluster_state* cluster_state;
-    cluster_state = ndb_mgm_get_status2(ndb_mgm_handle, node_types);
-
-    int online_nodes = get_online_node_count(cluster_state);
-    int offline_nodes = (cluster_state->no_of_nodes - online_nodes);
-    if (offline_nodes != 0) {
-        cout << "nodes are off-line, aborting" << endl;
+    size = sizeof(int) * number_of_nodes;
+    int* node_ids = (int*)malloc(size);
+    if (!node_ids) {
+        cerr << __FILE__ << ":" << __LINE__
+             << ": could not allocate " << size << " bytes?" << endl;
+        close_ndb_connection(&ndb_ctx);
+        return 1;
     }
-
-    int number_of_nodes = cluster_state->no_of_nodes;
-    int err = offline_nodes;
-    for (int i = 0; !err && i < number_of_nodes; ++i) {
+    for (int i = 0; i < number_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
-        node_state = &(cluster_state->node_states[i]);
-        err = restart_node(cluster_connection, ndb_mgm_handle,
-            node_state, wait_seconds);
+        node_state = &(ndb_ctx.cluster_state->node_states[i]);
+        node_ids[i] = node_state->node_id;
     }
 
-    cout << "finished";
-    if (err) {
-        cout << " with errors";
+    for (int i = 0; i < number_of_nodes; ++i) {
+        restart_node(&ndb_ctx, node_ids[i]);
     }
-    cout << endl
-         << endl;
 
-    report_cluster_state(ndb_mgm_handle, node_types);
-
-    free((void*)cluster_state);
-    ndb_mgm_destroy_handle(&ndb_mgm_handle);
-    delete (cluster_connection);
-    ndb_end(0);
+    report_cluster_state(&ndb_ctx);
+    free(node_ids);
+    close_ndb_connection(&ndb_ctx);
+    ndb_end(NDB_NORMAL_USER);
+    return 0;
 }
