@@ -15,12 +15,14 @@ MYSQL_NDB_DIR=$(HOME)/builds/mysql-cluster-7.6
 NDB_CXX_STD=--std=c++11
 
 UNAME := $(shell uname)
+COMPILER := $(shell readlink c++)
 
 ifeq ($(UNAME), Darwin)
 	DYNAMIC_LIB_EXT=dylib
 else
 	DYNAMIC_LIB_EXT=so
 endif
+
 
 CXX_INCLUDES=-I$(MYSQL_NDB_DIR)/include/storage/ndb
 
@@ -30,7 +32,6 @@ FORMAT=clang-format-6.0 --style=WebKit
 
 
 NDB_LDFLAGS_DYNAMIC=\
-	-static-libasan \
 	-fsanitize=address \
 	-rdynamic \
 	-L$(MYSQL_NDB_DIR)/lib \
@@ -39,7 +40,9 @@ NDB_LIBS_DYNAMIC=$(MYSQL_NDB_DIR)/lib/libndbclient.$(DYNAMIC_LIB_EXT)
 NDB_LD_ADD_DYNAMIC=-lndbclient
 
 
-NDB_LDFLAGS_STATIC=-static-libasan
+ifeq ($(COMPILER), gcc)
+	NDB_LDFLAGS_STATIC=-static-libasan
+endif
 NDB_LIBS_STATIC=\
 	$(MYSQL_NDB_DIR)/lib/libndbclient_static.a \
 	$(MYSQL_NDB_DIR)/lib/libmysqlclient.a
