@@ -231,16 +231,15 @@ int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
         ret = ndb_mgm_restart4(ndb_ctx->ndb_mgm_handle, cnt, nodes, initial,
             nostart, abort, force, &disconnect);
         if (ret <= 0) {
-            cerr << __FILE__ << ":" << __LINE__
+            cout << __FILE__ << ":" << __LINE__
                  << ": ndb_mgm_restart4 node " << nodes[0]
                  << " returned error: " << ret << endl;
-            cout << "sleep(" << ndb_ctx->wait_seconds << ")" << endl;
             sleep_reconnect(ndb_ctx);
         }
     }
 
     if (disconnect) {
-        sleep(ndb_ctx->wait_seconds);
+        sleep_reconnect(ndb_ctx);
     }
 
     loop_wait_until_ready(ndb_ctx, nodes[0]);
