@@ -344,7 +344,7 @@ int main(int argc, char** argv)
 
     report_cluster_state(&ndb_ctx);
 
-    size_t number_of_nodes;
+    size_t number_of_nodes = 0;
     int* node_ids = get_node_ids(&ndb_ctx, &number_of_nodes);
     if (!node_ids) {
         cerr << __FILE__ << ":" << __LINE__
