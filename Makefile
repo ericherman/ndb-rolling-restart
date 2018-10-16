@@ -14,6 +14,14 @@
 MYSQL_NDB_DIR=$(HOME)/builds/mysql-cluster-7.6
 NDB_CXX_STD=--std=c++11
 
+UNAME := $(shell uname)
+
+ifeq ($(UNAME), Darwin)
+	DYNAMIC_LIB_EXT=dylib
+else
+	DYNAMIC_LIB_EXT=so
+endif
+
 CXX_INCLUDES=-I$(MYSQL_NDB_DIR)/include/storage/ndb
 
 
@@ -27,7 +35,7 @@ NDB_LDFLAGS_DYNAMIC=\
 	-rdynamic \
 	-L$(MYSQL_NDB_DIR)/lib \
 	-Wl,-rpath,$(MYSQL_NDB_DIR)/lib
-NDB_LIBS_DYNAMIC=$(MYSQL_NDB_DIR)/lib/libndbclient.so
+NDB_LIBS_DYNAMIC=$(MYSQL_NDB_DIR)/lib/libndbclient.$(DYNAMIC_LIB_EXT)
 NDB_LD_ADD_DYNAMIC=-lndbclient
 
 
