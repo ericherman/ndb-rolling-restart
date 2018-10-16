@@ -88,7 +88,7 @@ int loop_wait_until_ready(Ndb_cluster_connection* cluster_connection, int node_i
     assert(cluster_connection);
 
     int cnt = 1;
-    int nodes[cnt] = { node_id };
+    int nodes[1] = { node_id };
 
     int ret = -1;
     while (ret == -1) {
@@ -118,7 +118,7 @@ int restart_node(Ndb_cluster_connection* cluster_connection,
     int ret = 0;
     int disconnect = 0;
     int cnt = 1;
-    int nodes[cnt] = { node_state->node_id };
+    int nodes[1] = { node_state->node_id };
     int initial = 0;
     int nostart = 0;
     int abort = 0;
