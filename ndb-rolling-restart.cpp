@@ -22,6 +22,7 @@
 using namespace std;
 
 #define NDB_NORMAL_USER 0
+#define Cerr cerr << __FILE__ << ":" << __LINE__ << ": "
 
 struct ndb_connection_context_s {
     const char* connect_string;
@@ -58,8 +59,7 @@ static Ndb_cluster_connection* ndb_connect(const char* connect_string,
 
     cluster_connection = new Ndb_cluster_connection(connect_string);
     if (!cluster_connection) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": new Ndb_cluster_connection() returned 0" << endl;
+        Cerr << "new Ndb_cluster_connection() returned 0" << endl;
         return nullptr;
     }
 
@@ -71,8 +71,7 @@ static Ndb_cluster_connection* ndb_connect(const char* connect_string,
     int before_wait = wait_seconds;
     int after_wait = wait_seconds;
     if (cluster_connection->wait_until_ready(before_wait, after_wait) < 0) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": Cluster was not ready within "
+        Cerr << "Cluster was not ready within "
              << wait_seconds << " seconds" << endl;
         delete (cluster_connection);
         return nullptr;
@@ -92,8 +91,7 @@ static int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
 
     ndb_ctx->ndb_mgm_handle = ndb_mgm_create_handle();
     if (!ndb_ctx->ndb_mgm_handle) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": Error: ndb_mgm_create_handle returned null?" << endl;
+        Cerr << "Error: ndb_mgm_create_handle returned null?" << endl;
         close_ndb_connection(ndb_ctx);
         return 1;
     }
@@ -106,9 +104,9 @@ static int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
         retry_delay_secs, verbose);
 
     if (ret != 0) {
-        cerr << __FILE__ << ":" << __LINE__ << ": Error: "
-             << ndb_mgm_get_latest_error_msg(ndb_ctx->ndb_mgm_handle)
-             << endl;
+        Cerr "ndb_mgm_get_latest_error: "
+            << ndb_mgm_get_latest_error_msg(ndb_ctx->ndb_mgm_handle)
+            << endl;
         close_ndb_connection(ndb_ctx);
         return 1;
     }
@@ -123,8 +121,7 @@ static int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
         node_types);
 
     if (!ndb_ctx->cluster_state) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": Error: ndb_mgm_get_status2 returned null?" << endl;
+        Cerr << "ndb_mgm_get_status2 returned null?" << endl;
         close_ndb_connection(ndb_ctx);
         return 1;
     }
@@ -180,8 +177,7 @@ static void sleep_reconnect(struct ndb_connection_context_s* ndb_ctx)
     sleep(ndb_ctx->wait_seconds);
     int err = init_ndb_connection(ndb_ctx);
     if (err) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": Error reconnecting to ndb" << endl;
+        Cerr << "could not reconnect to ndb" << endl;
     }
 }
 
@@ -201,8 +197,7 @@ static int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx,
         ret = ndb_ctx->connection->wait_until_ready(nodes, cnt,
             ndb_ctx->wait_seconds);
         if (ret <= -1) {
-            cerr << __FILE__ << ":" << __LINE__
-                 << ": ndb_mgm_restart4 returned error: " << ret << endl;
+            Cerr << "ndb_mgm_restart4 returned error: " << ret << endl;
             sleep_reconnect(ndb_ctx);
         }
     }
@@ -257,16 +252,14 @@ static int* get_node_ids(struct ndb_mgm_cluster_state* cluster_state,
 
     int number_of_nodes = cluster_state->no_of_nodes;
     if (number_of_nodes < 1) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": cluster_state->no_of_nodes == " << number_of_nodes
+        Cerr << "cluster_state->no_of_nodes == " << number_of_nodes
              << " ?" << endl;
         return nullptr;
     }
     size_t size = sizeof(int) * number_of_nodes;
     int* node_ids = (int*)malloc(size);
     if (!node_ids) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": could not allocate " << size << " bytes?" << endl;
+        Cerr << "could not allocate " << size << " bytes?" << endl;
         return nullptr;
     }
     *len = number_of_nodes;
@@ -340,8 +333,7 @@ int main(int argc, char** argv)
 
     int err = init_ndb_connection(&ndb_ctx);
     if (err) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": error connecting to ndb '" << ndb_ctx.connect_string << "'"
+        Cerr << "error connecting to ndb '" << ndb_ctx.connect_string << "'"
              << endl;
         return 1;
     }
@@ -351,8 +343,7 @@ int main(int argc, char** argv)
     size_t number_of_nodes = 0;
     int* node_ids = get_node_ids(ndb_ctx.cluster_state, &number_of_nodes);
     if (!node_ids) {
-        cerr << __FILE__ << ":" << __LINE__
-             << ": get_node_ids returned NULL" << endl;
+        Cerr << "get_node_ids returned NULL" << endl;
         close_ndb_connection(&ndb_ctx);
         return 1;
     }

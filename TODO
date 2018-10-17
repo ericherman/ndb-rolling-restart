@@ -11,4 +11,3 @@ TODO
    * option: ndb_mgm_connect no_retries
    * option: ndb_mgm_connect retry_delay_secs
    * option: ndb_mgm_connect verbosity (same as connection->connect?)
- * de-clutter error messages (a macro would help)
