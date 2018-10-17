@@ -1,0 +1,14 @@
+TODO
+ * getopts - currently argv[1] will be used for the connection_string
+   would be good to be able to set various options and such.
+   * option: skip nodes up to id x
+   * option: connection->wait_until_ready wait_seconds
+   * option: sleep wait_seconds
+   * option: verbosity
+   * option: Ndb_cluster_connection->connect no_retries
+   * option: Ndb_cluster_connection->connect retry_delay_in_seconds
+   * option: Ndb_cluster_connection->connect verbosity
+   * option: ndb_mgm_connect no_retries
+   * option: ndb_mgm_connect retry_delay_secs
+   * option: ndb_mgm_connect verbosity (same as connection->connect?)
+ * de-clutter error messages (a macro would help)
