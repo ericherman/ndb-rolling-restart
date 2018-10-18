@@ -11,3 +11,5 @@ TODO
    * option: ndb_mgm_connect no_retries
    * option: ndb_mgm_connect retry_delay_secs
    * option: ndb_mgm_connect verbosity (same as connection->connect?)
+ * restart one node per node group at a time
+   * could provide a massive speed-up of the rolling restart
