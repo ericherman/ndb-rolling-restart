@@ -74,7 +74,8 @@ LDADD=$(NDB_LD_ADD)
 
 ndb-rolling-restart: ndb-rolling-restart.cpp
 	$(CXX) -c $(CXXFLAGS) ndb-rolling-restart.cpp -o ndb-rolling-restart.o
-	$(CXX) $(LDFLAGS) ndb-rolling-restart.o $(NDB_LIBS) -o ndb-rolling-restart $(LDADD)
+	$(CXX) $(LDFLAGS) ndb-rolling-restart.o $(NDB_LIBS) \
+		-o ndb_rolling_restart $(LDADD)
 
 tidy:
 	$(FORMAT) ndb-rolling-restart.cpp > ndb-rolling-restart.cpp.format
@@ -82,4 +83,4 @@ tidy:
 	mv ndb-rolling-restart.cpp.format ndb-rolling-restart.cpp
 
 clean:
-	rm -vf *.o ndb-rolling-restart
+	rm -vf *.o ndb_rolling_restart

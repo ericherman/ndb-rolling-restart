@@ -1,3 +1,4 @@
+ndb_rolling_restart
 ndb-rolling-restart
 *.o
 *~
