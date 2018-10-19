@@ -14,6 +14,7 @@
  */
 
 #include <assert.h>
+#include <getopt.h>
 #include <iostream>
 #include <mgmapi/mgmapi.h>
 #include <ndbapi/NdbApi.hpp>
@@ -26,6 +27,7 @@ using namespace std;
 #define Cerr cerr << __FILE__ << ":" << __LINE__ << ": "
 
 #define internal static
+#define global_variable static
 
 #define uint8 uint8_t
 #define uint16 uint16_t
@@ -45,6 +47,15 @@ struct restart_node_status_s {
     int node_group;
     int node_id;
     bool was_restarted;
+};
+
+global_variable int verbose_flag = 0;
+
+global_variable struct option long_options[] = {
+    { "connection_string", required_argument, NULL, 'c' },
+    { "wait_seconds", optional_argument, NULL, 'w' },
+    { "verbose", optional_argument, &verbose_flag, 1 },
+    { 0, 0, 0, 0 }
 };
 
 /*
@@ -481,8 +492,37 @@ int main(int argc, char** argv)
 
     struct ndb_connection_context_s ndb_ctx;
 
-    ndb_ctx.connect_string = argc > 1 ? argv[1] : "";
+    ndb_ctx.connect_string = "";
     ndb_ctx.wait_seconds = 30;
+
+    int option_index = 0;
+    int c;
+    while ((c = getopt_long(argc, argv, "c:w:", long_options, &option_index)) != -1) {
+
+        switch (c) {
+        case 0: {
+            /* If this option set a flag, do nothing else now. */
+            break;
+        }
+        case 'c': {
+            ndb_ctx.connect_string = optarg;
+            break;
+        }
+        case 'w': {
+
+            char* temp;
+            unsigned long wait_seconds_arg = strtoul(optarg, &temp, 10);
+
+            if (optarg != temp && *temp == '\0') { // parsed the whole thing
+                ndb_ctx.wait_seconds = wait_seconds_arg;
+            }
+            break;
+        }
+        default: {
+            abort();
+        }
+        }
+    }
 
     /* skipping wait after restart can be a big speed improvement, but
        failure to wait after restart can be fatal:
