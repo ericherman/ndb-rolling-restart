@@ -17,12 +17,20 @@
 #include <iostream>
 #include <mgmapi/mgmapi.h>
 #include <ndbapi/NdbApi.hpp>
+#include <string.h>
 #include <unistd.h>
 
 using namespace std;
 
 #define NDB_NORMAL_USER 0
 #define Cerr cerr << __FILE__ << ":" << __LINE__ << ": "
+
+#define internal static
+
+#define uint8 uint8_t
+#define uint16 uint16_t
+#define uint32 uint32_t
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 struct ndb_connection_context_s {
     const char* connect_string;
@@ -38,6 +46,84 @@ struct restart_node_status_s {
     int node_id;
     bool was_restarted;
 };
+
+/*
+	Search elements for a target.
+	returns
+		BINSEARCH_FOUND: target is an element of elements, target_index is set to the location
+		BINSEARCH_INSERT: target is NOT an element of elements, target_index is set to the index where you would need to insert target
+		BINSEARCH_ERROR: elements is NULL, target_index is unchanged
+*/
+#define BINSEARCH_ERROR 0
+#define BINSEARCH_FOUND 1
+#define BINSEARCH_INSERT 2
+
+internal uint8 binary_search(int* elements, uint32 num_elements, int target, uint32* target_index)
+{
+
+    // no data at all
+    if (elements == NULL) {
+        return BINSEARCH_ERROR;
+    }
+
+    // empty array, or insert location should be initial element
+    if (num_elements == 0 || target < elements[0]) {
+        *target_index = 0;
+        return BINSEARCH_INSERT;
+    }
+
+    uint32 span = num_elements;
+    uint32 mid = num_elements / 2;
+    uint32 large_half;
+    while (span > 0) {
+
+        if (target == elements[mid]) {
+            *target_index = mid;
+            return BINSEARCH_FOUND;
+        }
+
+        span = span / 2; // half the range left over
+        large_half = span / 2 + (span % 2); // being clever. But this is ceil
+
+        if (target < elements[mid]) {
+            mid -= large_half;
+        } else {
+            mid += large_half;
+        }
+    }
+
+    // target is not an element of elements, but we found the closest location
+    if (mid == num_elements) { // after all other elements
+        *target_index = num_elements;
+    } else if (target < elements[mid]) {
+        *target_index = mid; // displace, shift the rest right
+    } else if (target > elements[mid]) {
+        *target_index = mid + 1; // not sure if these two are both possible
+    } else {
+        assert(0); // cannot happen
+    }
+
+    // correctness checks:
+    // 1. array has elements, and we should insert at the end, make sure the last element is smaller than the new one
+    if (num_elements > 0 && *target_index == num_elements) {
+        assert(target > elements[num_elements - 1]);
+    }
+    // 2. array has no elements (we already check this above, but left for completeness)
+    if (num_elements == 0) {
+        assert(*target_index == 0);
+    }
+    // 3. array has elements, and we should insert at the beginning
+    if (num_elements > 0 && *target_index == 0) {
+        assert(target < elements[0]); // MUST be smaller, otherwise it would have been found if equal
+    }
+    // 4. insert somewhere in the middle
+    if (*target_index > 0 && *target_index < num_elements) {
+        assert(target < elements[*target_index]); // insert shifts the rest right, MUST be smaller otherwise it would have been found
+        assert(elements[*target_index - 1] < target); // element to the left is smaller
+    }
+
+    return BINSEARCH_INSERT;
+}
 
 static void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
 {
@@ -259,7 +345,7 @@ static struct restart_node_status_s* get_node_restarts(
     assert(len);
     *len = 0;
 
-    int number_of_nodes = cluster_state->no_of_nodes;
+    uint32 number_of_nodes = cluster_state->no_of_nodes;
     if (number_of_nodes < 1) {
         Cerr << "cluster_state->no_of_nodes == " << number_of_nodes
              << " ?" << endl;
@@ -275,12 +361,66 @@ static struct restart_node_status_s* get_node_restarts(
     }
     *len = number_of_nodes;
 
-    for (int i = 0; i < number_of_nodes; ++i) {
+    for (uint32 i = 0; i < number_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
         node_state = &(cluster_state->node_states[i]);
         node_restarts[i].node_group = node_state->node_group;
         node_restarts[i].node_id = node_state->node_id;
         node_restarts[i].was_restarted = 0;
+    }
+
+    // group them so they alternate by groups, lowest group id first
+
+    // there can't be more groups than nodes
+    int group_ids[number_of_nodes];
+    uint32 group_count = 0;
+
+    // create a sorted array of group ids without duplicates
+    uint32 target_index;
+    for (uint32 i = 0; i < number_of_nodes; i++) {
+        if (binary_search(group_ids, group_count, node_restarts[i].node_group, &target_index) == BINSEARCH_INSERT) {
+
+            // we have enough space for sure, so we can move all current elements over without writing past the end of the array
+            // this way we end up with a sorted array (ascending)
+            uint32 elements_to_move = group_count - target_index;
+            memmove(group_ids + target_index + 1, group_ids + target_index, sizeof(int) * elements_to_move);
+            group_ids[target_index] = node_restarts[i].node_group;
+            group_count++;
+        }
+        // already in the array
+    }
+
+    // now "take" nodes in turn from each of the groups
+    // the convenient way is to start at node 0, find a node from group 0 and swap them
+    // then got to node 1 and to get a node from group 1 etc, looping the groups when at the end
+    // if there is no node left from a group, then remove that group from the list and keep going
+    uint32 update_node_index = 0, current_node_index = 0, current_group_index = 0;
+    restart_node_status_s temp;
+    while (update_node_index < number_of_nodes) {
+
+        current_node_index = update_node_index;
+        while (node_restarts[current_node_index].node_group != group_ids[current_group_index]) {
+            current_node_index++;
+
+            // if we reach the end without finding any, then this group is exhausted.
+            // remove this group from the list, update the group count and ensure current_group_index is within bounds
+            if (current_node_index == number_of_nodes) {
+
+                uint32 elements_to_move = group_count - current_group_index - 1; // move 1 left
+                memmove(group_ids + current_group_index, group_ids + current_group_index + 1, sizeof(uint32) * elements_to_move);
+                group_count--;
+
+                current_group_index %= group_count; // in case it was at the last one, point back at 0
+                current_node_index = update_node_index; // start search over at the beginning
+            }
+        }
+
+        temp = node_restarts[update_node_index];
+        node_restarts[update_node_index] = node_restarts[current_node_index];
+        node_restarts[current_node_index] = temp;
+
+        update_node_index++;
+        current_group_index = (current_group_index + 1) % group_count;
     }
 
     return node_restarts;
