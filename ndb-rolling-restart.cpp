@@ -27,9 +27,16 @@ using namespace std;
 struct ndb_connection_context_s {
     const char* connect_string;
     unsigned wait_seconds;
+    unsigned wait_after_restart;
     Ndb_cluster_connection* connection;
     NdbMgmHandle ndb_mgm_handle; /* a ptr */
     struct ndb_mgm_cluster_state* cluster_state;
+};
+
+struct restart_node_status_s {
+    int node_group;
+    int node_id;
+    bool was_restarted;
 };
 
 static void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
@@ -237,14 +244,16 @@ static int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
         sleep_reconnect(ndb_ctx);
     }
 
-    loop_wait_until_ready(ndb_ctx, nodes[0]);
+    if (ndb_ctx->wait_after_restart) {
+        loop_wait_until_ready(ndb_ctx, nodes[0]);
+    }
 
     cout << "restart node " << nodes[0] << " complete" << endl;
     return 0;
 }
 
-static int* get_node_ids(struct ndb_mgm_cluster_state* cluster_state,
-    size_t* len)
+static struct restart_node_status_s* get_node_restarts(
+    struct ndb_mgm_cluster_state* cluster_state, size_t* len)
 {
     assert(cluster_state);
     assert(len);
@@ -256,9 +265,11 @@ static int* get_node_ids(struct ndb_mgm_cluster_state* cluster_state,
              << " ?" << endl;
         return nullptr;
     }
-    size_t size = sizeof(int) * number_of_nodes;
-    int* node_ids = (int*)malloc(size);
-    if (!node_ids) {
+
+    size_t size = sizeof(struct restart_node_status_s) * number_of_nodes;
+    struct restart_node_status_s* node_restarts;
+    node_restarts = (struct restart_node_status_s*)malloc(size);
+    if (!node_restarts) {
         Cerr << "could not allocate " << size << " bytes?" << endl;
         return nullptr;
     }
@@ -267,10 +278,12 @@ static int* get_node_ids(struct ndb_mgm_cluster_state* cluster_state,
     for (int i = 0; i < number_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
         node_state = &(cluster_state->node_states[i]);
-        node_ids[i] = node_state->node_id;
+        node_restarts[i].node_group = node_state->node_group;
+        node_restarts[i].node_id = node_state->node_id;
+        node_restarts[i].was_restarted = 0;
     }
 
-    return node_ids;
+    return node_restarts;
 }
 
 static void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
@@ -331,6 +344,11 @@ int main(int argc, char** argv)
     ndb_ctx.connect_string = argc > 1 ? argv[1] : "";
     ndb_ctx.wait_seconds = 30;
 
+    /* skipping wait after restart can be a big speed improvement, but
+       failure to wait after restart can be fatal:
+       https://pastebin.com/raw/1mxgb99s */
+    ndb_ctx.wait_after_restart = 1;
+
     int err = init_ndb_connection(&ndb_ctx);
     if (err) {
         Cerr << "error connecting to ndb '" << ndb_ctx.connect_string << "'"
@@ -340,18 +358,31 @@ int main(int argc, char** argv)
 
     report_cluster_state(&ndb_ctx);
 
+    struct restart_node_status_s* node_restarts;
     size_t number_of_nodes = 0;
-    int* node_ids = get_node_ids(ndb_ctx.cluster_state, &number_of_nodes);
-    if (!node_ids) {
-        Cerr << "get_node_ids returned NULL" << endl;
+    node_restarts = get_node_restarts(ndb_ctx.cluster_state, &number_of_nodes);
+    if (!node_restarts) {
+        Cerr << "get_node_restarts returned NULL" << endl;
         close_ndb_connection(&ndb_ctx);
         return 1;
     }
 
-    for (size_t i = 0; i < number_of_nodes; ++i) {
-        restart_node(&ndb_ctx, node_ids[i]);
+    unsigned restarted = 0;
+    int last_group = -1;
+    for (size_t i = 0; restarted < number_of_nodes; ++i) {
+        if (i >= number_of_nodes) {
+            i = 0;
+            last_group = -1;
+        }
+        if ((node_restarts[i].node_group != last_group)
+            && !node_restarts[i].was_restarted) {
+            ++restarted;
+            node_restarts[i].was_restarted = 1;
+            last_group = node_restarts[i].node_group;
+            restart_node(&ndb_ctx, node_restarts[i].node_id);
+        }
     }
-    free(node_ids);
+    free(node_restarts);
 
     report_cluster_state(&ndb_ctx);
 
