@@ -47,8 +47,8 @@ static int verbose_flag = 0;
 /* Global */
 static struct option long_options[] = {
     { "connection_string", required_argument, NULL, 'c' },
-    { "wait_seconds", optional_argument, NULL, 'w' },
-    { "verbose", optional_argument, &verbose_flag, 1 },
+    { "wait_seconds", required_argument, NULL, 'w' },
+    { "verbose", no_argument, &verbose_flag, 1 },
     { 0, 0, 0, 0 }
 };
 
