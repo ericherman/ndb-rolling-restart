@@ -1,10 +1,12 @@
 TODO
- * getopts - (done) currently argv[1] will be used for the connection_string
-   would be good to be able to set various options and such.
+ * unit tests?
+ * provide path to MySQL NDB Cluster installdir and then functional test?
+ * getopts
+   * option: help
+   * if no -c, use use argv[1] for the connection_string
    * option: skip nodes up to id x
-   * (done) option: connection->wait_until_ready wait_seconds
    * option: sleep wait_seconds
-   * (done) option: verbosity
+   * option: verbosity - should this be a global?
    * option: Ndb_cluster_connection->connect no_retries
    * option: Ndb_cluster_connection->connect retry_delay_in_seconds
    * option: Ndb_cluster_connection->connect verbosity
