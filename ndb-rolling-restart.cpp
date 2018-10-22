@@ -360,28 +360,12 @@ static int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
-static struct restart_node_status_s* get_node_restarts(
-    struct ndb_mgm_cluster_state* cluster_state, size_t* len)
+void get_node_restarts(
+    struct ndb_mgm_cluster_state* cluster_state, uint32_t number_of_nodes,
+struct restart_node_status_s* node_restarts)
 {
     assert(cluster_state);
-    assert(len);
-    *len = 0;
-
-    uint32_t number_of_nodes = cluster_state->no_of_nodes;
-    if (number_of_nodes < 1) {
-        Cerr << "cluster_state->no_of_nodes == " << number_of_nodes
-             << " ?" << endl;
-        return nullptr;
-    }
-
-    size_t size = sizeof(struct restart_node_status_s) * number_of_nodes;
-    struct restart_node_status_s* node_restarts;
-    node_restarts = (struct restart_node_status_s*)malloc(size);
-    if (!node_restarts) {
-        Cerr << "could not allocate " << size << " bytes?" << endl;
-        return nullptr;
-    }
-    *len = number_of_nodes;
+    assert(number_of_nodes);
 
     for (uint32_t i = 0; i < number_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
@@ -461,7 +445,6 @@ static struct restart_node_status_s* get_node_restarts(
         current_group_index = (current_group_index + 1) % group_count;
     }
 
-    return node_restarts;
 }
 
 static void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
@@ -565,14 +548,15 @@ int main(int argc, char** argv)
 
     report_cluster_state(&ndb_ctx);
 
-    struct restart_node_status_s* node_restarts;
-    size_t number_of_nodes = 0;
-    node_restarts = get_node_restarts(ndb_ctx.cluster_state, &number_of_nodes);
-    if (!node_restarts) {
-        Cerr << "get_node_restarts returned NULL" << endl;
+    uint32_t number_of_nodes = ndb_ctx.cluster_state->no_of_nodes;
+    if (number_of_nodes < 1) {
+        Cerr << "cluster_state->no_of_nodes == " << number_of_nodes
+             << " ?" << endl;
         close_ndb_connection(&ndb_ctx);
-        return 1;
+        return EXIT_FAILURE;
     }
+	struct restart_node_status_s node_restarts[number_of_nodes];
+    get_node_restarts(ndb_ctx.cluster_state, number_of_nodes, node_restarts);
 
     unsigned restarted = 0;
     int last_group = -1;
@@ -589,7 +573,6 @@ int main(int argc, char** argv)
             restart_node(&ndb_ctx, node_restarts[i].node_id);
         }
     }
-    free(node_restarts);
 
     report_cluster_state(&ndb_ctx);
 
