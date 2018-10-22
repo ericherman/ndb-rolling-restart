@@ -57,18 +57,16 @@ enum binary_search_result {
     binary_search_found = 1,
     binary_search_insert = 2
 };
-/*
-	Search elements for a target.
-	returns
-		binary_search_found: target is an element of elements,
-			target_index is set to the location
-		binary_search_insert: target is NOT an element of elements,
-			target_index is set to the index where one would need
-			to insert target
-		binary_search_error: elements is NULL, target_index is unchanged
-*/
-
-static binary_search_result binary_search(int* elements, uint32_t num_elements,
+/**
+ * Search elements for a target
+ * returns
+ *    binary_search_found: target is an element of elements,
+ *	target_index is set to the location
+ *    binary_search_insert: target is NOT an element of elements,
+ *      target_index is set to the index where one would need to insert target
+ *    binary_search_error: elements is NULL, target_index is unchanged
+ */
+static binary_search_result binary_search_ints(int* elements, size_t num_elements,
     int target, size_t* target_index)
 {
     size_t local_target_index = 0;
@@ -395,12 +393,12 @@ static struct restart_node_status_s* get_node_restarts(
 
     // there can't be more groups than nodes
     int group_ids[number_of_nodes];
-    uint32_t group_count = 0;
+    size_t group_count = 0;
 
     // create a sorted array of group ids without duplicates
     size_t target_index;
     for (uint32_t i = 0; i < number_of_nodes; i++) {
-        binary_search_result search_result = binary_search(group_ids,
+        binary_search_result search_result = binary_search_ints(group_ids,
             group_count, node_restarts[i].node_group, &target_index);
         if (search_result == binary_search_insert) {
             // we have enough space for sure, so we can move all current
@@ -422,7 +420,9 @@ static struct restart_node_status_s* get_node_restarts(
     //     looping the groups when at the end
     // if there is no node left from a group,
     // then remove that group from the list and keep going
-    uint32_t update_node_index = 0, current_node_index = 0, current_group_index = 0;
+    size_t update_node_index = 0;
+    size_t current_node_index = 0;
+    size_t current_group_index = 0;
     restart_node_status_s temp;
     while (update_node_index < number_of_nodes) {
 
