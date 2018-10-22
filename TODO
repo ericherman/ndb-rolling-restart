@@ -13,5 +13,35 @@ TODO
    * option: ndb_mgm_connect no_retries
    * option: ndb_mgm_connect retry_delay_secs
    * option: ndb_mgm_connect verbosity (same as connection->connect?)
+
  * restart one node per node group at a time
    * could provide a massive speed-up of the rolling restart
+	* stop node 4
+	* stop node 2
+	* wait for stop to complete
+	* start node 4
+	* start node 2
+   * testNodeRestart.cpp has an example which stops (crashes) one node per node
+     group, see the functions crash_one_node_per_node_group, this is then
+     followed e.g by:
+	if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
+		return NDBT_FAILED;
+	if (restarter.waitClusterStarted())
+		return NDBT_FAILED;
+      the restarter object is a class our test program access the NDB MGM API
+      through this code is used in runMultiCrashTest function
+        testNodeRestart -n MultiCrashTest T1
+        storage/ndb/test/ndbapi/testNodeRestart.cpp
+   * the NDB MGM API should support all those variants
+   * need to check that we run with StopOnError set to 0, the entire program
+     relies on that you can start, stop and restart using the NDB MGM API,
+     this can only happen if the data node angel process is running,
+     the NDB MGM API cannot start a data node after an OS restart e.g.
+   * to stop a node without start, you have the nostart flag in
+     ndb_mgm_restart4 that can be set
+   * the wait for stop to complete is required since the stop command runs a
+     graceful shutdown, this can take a few seconds since we try to avoid
+     aborting transactions during stop
+
+ * Add option to restart using initial, there are cases when this is required
+     (although rare), a specific example is upgrade from 7.5 to 7.6
