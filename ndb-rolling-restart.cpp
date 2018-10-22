@@ -41,8 +41,10 @@ struct restart_node_status_s {
     bool was_restarted;
 };
 
+/* Global */
 static int verbose_flag = 0;
 
+/* Global */
 static struct option long_options[] = {
     { "connection_string", required_argument, NULL, 'c' },
     { "wait_seconds", optional_argument, NULL, 'w' },
@@ -50,32 +52,40 @@ static struct option long_options[] = {
     { 0, 0, 0, 0 }
 };
 
+enum binary_search_result {
+    binary_search_error = 0,
+    binary_search_found = 1,
+    binary_search_insert = 2
+};
 /*
 	Search elements for a target.
 	returns
-		BINSEARCH_FOUND: target is an element of elements,
+		binary_search_found: target is an element of elements,
 			target_index is set to the location
-		BINSEARCH_INSERT: target is NOT an element of elements,
+		binary_search_insert: target is NOT an element of elements,
 			target_index is set to the index where one would need
 			to insert target
-		BINSEARCH_ERROR: elements is NULL, target_index is unchanged
+		binary_search_error: elements is NULL, target_index is unchanged
 */
-#define BINSEARCH_ERROR 0
-#define BINSEARCH_FOUND 1
-#define BINSEARCH_INSERT 2
 
-static uint8_t binary_search(int* elements, uint32_t num_elements, int target,
-    size_t* target_index)
+static binary_search_result binary_search(int* elements, uint32_t num_elements,
+    int target, size_t* target_index)
 {
+    size_t local_target_index = 0;
+
     // no data at all
     if (elements == NULL) {
-        return BINSEARCH_ERROR;
+        return binary_search_error;
+    }
+
+    if (!target_index) {
+        target_index = &local_target_index;
     }
 
     // empty array, or insert location should be initial element
     if (num_elements == 0 || target < elements[0]) {
         *target_index = 0;
-        return BINSEARCH_INSERT;
+        return binary_search_insert;
     }
 
     uint32_t span = num_elements;
@@ -85,7 +95,7 @@ static uint8_t binary_search(int* elements, uint32_t num_elements, int target,
 
         if (target == elements[mid]) {
             *target_index = mid;
-            return BINSEARCH_FOUND;
+            return binary_search_found;
         }
 
         span = span / 2; // half the range left over
@@ -134,7 +144,7 @@ static uint8_t binary_search(int* elements, uint32_t num_elements, int target,
         assert(elements[*target_index - 1] < target);
     }
 
-    return BINSEARCH_INSERT;
+    return binary_search_insert;
 }
 
 static void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
@@ -388,11 +398,11 @@ static struct restart_node_status_s* get_node_restarts(
     uint32_t group_count = 0;
 
     // create a sorted array of group ids without duplicates
-    uint32_t target_index;
+    size_t target_index;
     for (uint32_t i = 0; i < number_of_nodes; i++) {
-        uint8_t search_result = binary_search(group_ids, group_count,
-            node_restarts[i].node_group, &target_index);
-        if (search_result == BINSEARCH_INSERT) {
+        binary_search_result search_result = binary_search(group_ids,
+            group_count, node_restarts[i].node_group, &target_index);
+        if (search_result == binary_search_insert) {
             // we have enough space for sure, so we can move all current
             // elements over without writing past the end of the array
             // this way we end up with a sorted array (ascending)
