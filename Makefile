@@ -78,14 +78,21 @@ LDFLAGS=$(NDB_LDFLAGS)
 
 LDADD=$(NDB_LD_ADD)
 
-ndb-rolling-restart: binary_search.o src/ndb-rolling-restart.cpp
-	$(CXX) -c $(CXXFLAGS) src/ndb-rolling-restart.cpp \
-		-o ndb-rolling-restart.o
+ndb_rolling_restart: binary_search.o ndb_rolling_restart.o \
+		src/ndb_rolling_restart.hpp src/ndb_rolling_restart_main.cpp
+	$(CXX) -c $(CXXFLAGS) src/ndb_rolling_restart_main.cpp \
+		-o ndb_rolling_restart_main.o
 	$(CXX) $(LDFLAGS) \
 		binary_search.o \
-		ndb-rolling-restart.o \
+		ndb_rolling_restart.o \
+		ndb_rolling_restart_main.o \
 		$(NDB_LIBS) \
 		-o ndb_rolling_restart $(LDADD)
+
+ndb_rolling_restart.o: src/binary_search.h src/ndb_rolling_restart.hpp \
+		src/ndb-rolling-restart.cpp
+	$(CXX) -c $(CXXFLAGS) src/ndb-rolling-restart.cpp \
+		-o ndb_rolling_restart.o
 
 binary_search.o: src/binary_search.h src/binary_search.c
 	$(CC) -c $(CFLAGS) -Isrc/ src/binary_search.c \
