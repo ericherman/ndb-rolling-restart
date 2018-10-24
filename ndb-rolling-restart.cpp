@@ -66,8 +66,8 @@ enum binary_search_result {
  *      target_index is set to the index where one would need to insert target
  *    binary_search_error: elements is NULL, target_index is unchanged
  */
-static binary_search_result binary_search_ints(int* elements, size_t num_elements,
-    int target, size_t* target_index)
+static binary_search_result binary_search_ints(int* elements,
+    size_t num_elements, int target, size_t* target_index)
 {
     size_t local_target_index = 0;
 
@@ -358,14 +358,13 @@ static int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
-void get_node_restarts(
-    struct ndb_mgm_cluster_state* cluster_state, uint32_t number_of_nodes,
-struct restart_node_status_s* node_restarts)
+void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
+    struct restart_node_status_s* node_restarts, size_t number_of_nodes)
 {
     assert(cluster_state);
     assert(number_of_nodes);
 
-    for (uint32_t i = 0; i < number_of_nodes; ++i) {
+    for (size_t i = 0; i < number_of_nodes; ++i) {
         struct ndb_mgm_node_state* node_state;
         node_state = &(cluster_state->node_states[i]);
         node_restarts[i].node_group = node_state->node_group;
@@ -381,18 +380,18 @@ struct restart_node_status_s* node_restarts)
 
     // create a sorted array of group ids without duplicates
     size_t target_index;
-    for (uint32_t i = 0; i < number_of_nodes; i++) {
+    for (size_t i = 0; i < number_of_nodes; ++i) {
         binary_search_result search_result = binary_search_ints(group_ids,
             group_count, node_restarts[i].node_group, &target_index);
         if (search_result == binary_search_insert) {
             // we have enough space for sure, so we can move all current
             // elements over without writing past the end of the array
             // this way we end up with a sorted array (ascending)
-            uint32_t elements_to_move = group_count - target_index;
+            size_t elements_to_move = group_count - target_index;
             memmove((group_ids + target_index + 1), (group_ids + target_index),
                 (sizeof(int) * elements_to_move));
             group_ids[target_index] = node_restarts[i].node_group;
-            group_count++;
+            ++group_count;
         }
         // already in the array
     }
@@ -413,7 +412,7 @@ struct restart_node_status_s* node_restarts)
         current_node_index = update_node_index;
         while (node_restarts[current_node_index].node_group
             != group_ids[current_group_index]) {
-            current_node_index++;
+            ++current_node_index;
 
             // if we reach the end without finding any,
             // then this group is exhausted.
@@ -423,12 +422,12 @@ struct restart_node_status_s* node_restarts)
             if (current_node_index == number_of_nodes) {
 
                 // move 1 left
-                uint32_t elements_to_move = group_count - current_group_index - 1;
+                size_t elements_to_move = group_count - current_group_index - 1;
 
                 memmove((group_ids + current_group_index),
                     (group_ids + current_group_index + 1),
-                    (sizeof(uint32_t) * elements_to_move));
-                group_count--;
+                    (sizeof(int) * elements_to_move));
+                --group_count;
 
                 // in case it was at the last one, point back at 0
                 current_group_index %= group_count;
@@ -441,10 +440,9 @@ struct restart_node_status_s* node_restarts)
         node_restarts[update_node_index] = node_restarts[current_node_index];
         node_restarts[current_node_index] = temp;
 
-        update_node_index++;
+        ++update_node_index;
         current_group_index = (current_group_index + 1) % group_count;
     }
-
 }
 
 static void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
@@ -548,15 +546,16 @@ int main(int argc, char** argv)
 
     report_cluster_state(&ndb_ctx);
 
-    uint32_t number_of_nodes = ndb_ctx.cluster_state->no_of_nodes;
-    if (number_of_nodes < 1) {
-        Cerr << "cluster_state->no_of_nodes == " << number_of_nodes
-             << " ?" << endl;
+    if (ndb_ctx.cluster_state->no_of_nodes < 1) {
+        Cerr << "cluster_state->no_of_nodes == "
+             << ndb_ctx.cluster_state->no_of_nodes << " ?" << endl;
         close_ndb_connection(&ndb_ctx);
         return EXIT_FAILURE;
     }
-	struct restart_node_status_s node_restarts[number_of_nodes];
-    get_node_restarts(ndb_ctx.cluster_state, number_of_nodes, node_restarts);
+    size_t number_of_nodes = (size_t)ndb_ctx.cluster_state->no_of_nodes;
+
+    struct restart_node_status_s node_restarts[number_of_nodes];
+    get_node_restarts(ndb_ctx.cluster_state, node_restarts, number_of_nodes);
 
     unsigned restarted = 0;
     int last_group = -1;
