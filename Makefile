@@ -91,9 +91,21 @@ binary_search.o: src/binary_search.h src/binary_search.c
 	$(CC) -c $(CFLAGS) -Isrc/ src/binary_search.c \
 		-o binary_search.o
 
+echeck.o: tests/echeck.h tests/echeck.c
+	$(CC) -c $(CFLAGS) -Itests/ tests/echeck.c -o echeck.o
+
+test-binary-search-int-basic: echeck.o binary_search.o
+	$(CC) $(CFLAGS) -Itests/ -Isrc/ \
+		echeck.o binary_search.o \
+		tests/test-binary-search-int-basic.c \
+		-o test-binary-search-int-basic
+
+check: test-binary-search-int-basic
+	./test-binary-search-int-basic
+
 tidy:
 	for FILE in \
-		`find src tests -name '*.h' -o -name '*.c'` \
+		`find src tests -name '*.h' -o -name '*.c' | grep -v echeck` \
  		`find src tests -name '*.hpp' -o -name '*.cpp'` \
 		; do $(FORMAT) $$FILE > $${FILE}.format; \
 		cp $${FILE} $${FILE}~; \
