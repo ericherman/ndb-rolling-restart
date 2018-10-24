@@ -25,6 +25,7 @@ endif
 CXX_INCLUDES=-I$(MYSQL_NDB_DIR)/include/storage/ndb
 
 
+SHELL := /bin/bash
 CXX=/usr/bin/c++
 FORMAT=clang-format-6.0 --style=WebKit
 
@@ -72,15 +73,20 @@ LDFLAGS=$(NDB_LDFLAGS)
 
 LDADD=$(NDB_LD_ADD)
 
-ndb-rolling-restart: ndb-rolling-restart.cpp
-	$(CXX) -c $(CXXFLAGS) ndb-rolling-restart.cpp -o ndb-rolling-restart.o
+ndb-rolling-restart: src/ndb-rolling-restart.cpp
+	$(CXX) -c $(CXXFLAGS) src/ndb-rolling-restart.cpp \
+		-o ndb-rolling-restart.o
 	$(CXX) $(LDFLAGS) ndb-rolling-restart.o $(NDB_LIBS) \
 		-o ndb_rolling_restart $(LDADD)
 
 tidy:
-	$(FORMAT) ndb-rolling-restart.cpp > ndb-rolling-restart.cpp.format
-	cp ndb-rolling-restart.cpp ndb-rolling-restart.cpp~
-	mv ndb-rolling-restart.cpp.format ndb-rolling-restart.cpp
+	for FILE in \
+		`find src tests -name '*.h' -o -name '*.c'` \
+ 		`find src tests -name '*.hpp' -o -name '*.cpp'` \
+		; do $(FORMAT) $$FILE > $${FILE}.format; \
+		cp $${FILE} $${FILE}~; \
+                mv $${FILE}.format $${FILE}; \
+        done
 
 clean:
 	rm -vf *.o ndb_rolling_restart
