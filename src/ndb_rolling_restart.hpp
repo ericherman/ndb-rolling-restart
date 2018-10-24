@@ -31,8 +31,8 @@ struct ndb_connection_context_s {
 };
 
 struct restart_node_status_s {
-    int node_group;
     int node_id;
+    int node_group;
     bool was_restarted;
 };
 
