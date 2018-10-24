@@ -27,6 +27,7 @@ CXX_INCLUDES=-I$(MYSQL_NDB_DIR)/include/storage/ndb
 
 SHELL := /bin/bash
 CXX=/usr/bin/c++
+CC=/usr/bin/cc
 FORMAT=clang-format-6.0 --style=WebKit
 
 
@@ -69,15 +70,26 @@ CXXFLAGS=$(NDB_CXX_STD) \
   $(CXX_NDB_SRC_WORKAROUNDS) \
   $(CXX_INCLUDES)
 
+CFLAGS=-std=c11 \
+  -g -O2 -Wall -Wextra -Werror \
+  $(DEBUG_CFLAGS)
+
 LDFLAGS=$(NDB_LDFLAGS)
 
 LDADD=$(NDB_LD_ADD)
 
-ndb-rolling-restart: src/ndb-rolling-restart.cpp
+ndb-rolling-restart: binary_search.o src/ndb-rolling-restart.cpp
 	$(CXX) -c $(CXXFLAGS) src/ndb-rolling-restart.cpp \
 		-o ndb-rolling-restart.o
-	$(CXX) $(LDFLAGS) ndb-rolling-restart.o $(NDB_LIBS) \
+	$(CXX) $(LDFLAGS) \
+		binary_search.o \
+		ndb-rolling-restart.o \
+		$(NDB_LIBS) \
 		-o ndb_rolling_restart $(LDADD)
+
+binary_search.o: src/binary_search.h src/binary_search.c
+	$(CC) -c $(CFLAGS) -Isrc/ src/binary_search.c \
+		-o binary_search.o
 
 tidy:
 	for FILE in \

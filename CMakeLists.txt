@@ -11,7 +11,9 @@ set (CMAKE_CXX_FLAGS "-fsanitize=address -g -Wall --std=c++11")
 include_directories (${NDBINCLUDE}/storage/ndb)
 link_directories (${NDBLIB})
 
-add_executable (ndb_rolling_restart src/ndb-rolling-restart.cpp)
+add_executable (ndb_rolling_restart
+	src/binary_search.h src/binary_search.c
+	src/ndb-rolling-restart.cpp)
 target_link_libraries (ndb_rolling_restart ndbclient)
 
 install (TARGETS ndb_rolling_restart DESTINATION bin)
