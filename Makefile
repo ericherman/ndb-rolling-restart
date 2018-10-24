@@ -1,4 +1,4 @@
-# Makefile - ndb-rolling-restart
+# Makefile - ndb_rolling_restart
 # Copyright (C) 2018 Eric Herman <eric@freesa.org>
 #
 # This work is free software: you can redistribute it and/or modify it
@@ -90,8 +90,8 @@ ndb_rolling_restart: binary_search.o ndb_rolling_restart.o \
 		-o ndb_rolling_restart $(LDADD)
 
 ndb_rolling_restart.o: src/binary_search.h src/ndb_rolling_restart.hpp \
-		src/ndb-rolling-restart.cpp
-	$(CXX) -c $(CXXFLAGS) src/ndb-rolling-restart.cpp \
+		src/ndb_rolling_restart.cpp
+	$(CXX) -c $(CXXFLAGS) src/ndb_rolling_restart.cpp \
 		-o ndb_rolling_restart.o
 
 binary_search.o: src/binary_search.h src/binary_search.c

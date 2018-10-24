@@ -1,5 +1,5 @@
 /*
- * ndb-rolling-restart
+ * ndb_rolling_restart
  * Copyright (C) 2018 Eric Herman <eric@freesa.org>
  *
  * This work is free software: you can redistribute it and/or modify it
@@ -13,8 +13,8 @@
  * Lesser General Public License for more details.
  */
 
-#include "binary_search.h"
 #include "ndb_rolling_restart.hpp"
+#include "binary_search.h"
 #include <assert.h>
 #include <iostream>
 #include <string.h>
