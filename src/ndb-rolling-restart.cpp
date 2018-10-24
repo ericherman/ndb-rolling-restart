@@ -266,19 +266,11 @@ static int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
-void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
-    struct restart_node_status_s* node_restarts, size_t number_of_nodes)
+void sort_node_restarts(struct restart_node_status_s* node_restarts,
+    size_t number_of_nodes)
 {
-    assert(cluster_state);
+    assert(node_restarts);
     assert(number_of_nodes);
-
-    for (size_t i = 0; i < number_of_nodes; ++i) {
-        struct ndb_mgm_node_state* node_state;
-        node_state = &(cluster_state->node_states[i]);
-        node_restarts[i].node_group = node_state->node_group;
-        node_restarts[i].node_id = node_state->node_id;
-        node_restarts[i].was_restarted = 0;
-    }
 
     // group them so they alternate by groups, lowest group id first
 
@@ -351,6 +343,23 @@ void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
         ++update_node_index;
         current_group_index = (current_group_index + 1) % group_count;
     }
+}
+
+void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
+    struct restart_node_status_s* node_restarts, size_t number_of_nodes)
+{
+    assert(cluster_state);
+    assert(number_of_nodes);
+
+    for (size_t i = 0; i < number_of_nodes; ++i) {
+        struct ndb_mgm_node_state* node_state;
+        node_state = &(cluster_state->node_states[i]);
+        node_restarts[i].node_group = node_state->node_group;
+        node_restarts[i].node_id = node_state->node_id;
+        node_restarts[i].was_restarted = 0;
+    }
+
+    sort_node_restarts(node_restarts, number_of_nodes);
 }
 
 static void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
