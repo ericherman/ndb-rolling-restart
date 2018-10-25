@@ -246,7 +246,9 @@ void sort_node_restarts(struct restart_node_status_s* node_restarts,
     // group them so they alternate by groups, lowest group id first
 
     // there can't be more groups than nodes
+    // technically, ISO C++ forbids variable length arrays
     int group_ids[number_of_nodes];
+    memset(group_ids, 0, sizeof(int) * number_of_nodes);
     size_t group_count = 0;
 
     // create a sorted array of group ids without duplicates
