@@ -2,8 +2,7 @@
 
 #include "echeck.h"
 #include "ndb_rolling_restart.hpp"
-
-#define STATIC_ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#include <string.h>
 
 int test_node_sorting(struct restart_node_status_s* nodes, size_t nodes_len,
     struct restart_node_status_s* expected_nodes, int verbose)
@@ -39,134 +38,146 @@ int test_node_sorting(struct restart_node_status_s* nodes, size_t nodes_len,
     return failures;
 }
 
+void init_node_status(struct restart_node_status_s *node, int id, int group)
+{
+	node->node_id = id;
+	node->node_group = group;
+	node->was_restarted = false;
+}
+
 int test_node_sorting_48(int verbose)
 {
-    struct restart_node_status_s nodes[] = {
-        //
-        { node_id : 47, node_group : 23, was_restarted : false }, //
-        { node_id : 20, node_group : 9, was_restarted : false }, //
-        { node_id : 39, node_group : 19, was_restarted : false }, //
-        { node_id : 26, node_group : 12, was_restarted : false }, //
-        { node_id : 6, node_group : 2, was_restarted : false }, //
-        { node_id : 37, node_group : 18, was_restarted : false }, //
-        { node_id : 7, node_group : 3, was_restarted : false }, //
-        { node_id : 29, node_group : 14, was_restarted : false }, //
-        { node_id : 40, node_group : 19, was_restarted : false }, //
-        { node_id : 25, node_group : 12, was_restarted : false }, //
-        { node_id : 36, node_group : 17, was_restarted : false }, //
-        { node_id : 1, node_group : 0, was_restarted : false }, //
-        { node_id : 8, node_group : 3, was_restarted : false }, //
-        { node_id : 9, node_group : 4, was_restarted : false }, //
-        { node_id : 30, node_group : 14, was_restarted : false }, //
-        { node_id : 14, node_group : 6, was_restarted : false }, //
-        { node_id : 31, node_group : 15, was_restarted : false }, //
-        { node_id : 13, node_group : 6, was_restarted : false }, //
-        { node_id : 21, node_group : 10, was_restarted : false }, //
-        { node_id : 16, node_group : 7, was_restarted : false }, //
-        { node_id : 42, node_group : 20, was_restarted : false }, //
-        { node_id : 3, node_group : 1, was_restarted : false }, //
-        { node_id : 24, node_group : 11, was_restarted : false }, //
-        { node_id : 5, node_group : 2, was_restarted : false }, //
-        { node_id : 2, node_group : 0, was_restarted : false }, //
-        { node_id : 18, node_group : 8, was_restarted : false }, //
-        { node_id : 11, node_group : 5, was_restarted : false }, //
-        { node_id : 27, node_group : 13, was_restarted : false }, //
-        { node_id : 33, node_group : 16, was_restarted : false }, //
-        { node_id : 44, node_group : 21, was_restarted : false }, //
-        { node_id : 38, node_group : 18, was_restarted : false }, //
-        { node_id : 15, node_group : 7, was_restarted : false }, //
-        { node_id : 10, node_group : 4, was_restarted : false }, //
-        { node_id : 32, node_group : 15, was_restarted : false }, //
-        { node_id : 4, node_group : 1, was_restarted : false }, //
-        { node_id : 46, node_group : 22, was_restarted : false }, //
-        { node_id : 48, node_group : 23, was_restarted : false }, //
-        { node_id : 43, node_group : 21, was_restarted : false }, //
-        { node_id : 28, node_group : 13, was_restarted : false }, //
-        { node_id : 41, node_group : 20, was_restarted : false }, //
-        { node_id : 35, node_group : 17, was_restarted : false }, //
-        { node_id : 22, node_group : 10, was_restarted : false }, //
-        { node_id : 12, node_group : 5, was_restarted : false }, //
-        { node_id : 19, node_group : 9, was_restarted : false }, //
-        { node_id : 34, node_group : 16, was_restarted : false }, //
-        { node_id : 45, node_group : 22, was_restarted : false }, //
-        { node_id : 17, node_group : 8, was_restarted : false }, //
-        { node_id : 23, node_group : 11, was_restarted : false } //
-    };
+    struct restart_node_status_s nodes[48];
+    struct restart_node_status_s expected_nodes[48];
 
-    struct restart_node_status_s expected_nodes[] = {
-        //
-        { node_id : 1, node_group : 0, was_restarted : false }, //
-        { node_id : 3, node_group : 1, was_restarted : false }, //
-        { node_id : 5, node_group : 2, was_restarted : false }, //
-        { node_id : 7, node_group : 3, was_restarted : false }, //
-        { node_id : 9, node_group : 4, was_restarted : false }, //
-        { node_id : 13, node_group : 6, was_restarted : false }, //
-        { node_id : 15, node_group : 7, was_restarted : false }, //
-        { node_id : 17, node_group : 8, was_restarted : false }, //
-        { node_id : 19, node_group : 9, was_restarted : false }, //
-        { node_id : 21, node_group : 10, was_restarted : false }, //
-        { node_id : 23, node_group : 11, was_restarted : false }, //
-        { node_id : 25, node_group : 12, was_restarted : false }, //
-        { node_id : 27, node_group : 13, was_restarted : false }, //
-        { node_id : 29, node_group : 14, was_restarted : false }, //
-        { node_id : 31, node_group : 15, was_restarted : false }, //
-        { node_id : 33, node_group : 16, was_restarted : false }, //
-        { node_id : 35, node_group : 17, was_restarted : false }, //
-        { node_id : 37, node_group : 18, was_restarted : false }, //
-        { node_id : 39, node_group : 19, was_restarted : false }, //
-        { node_id : 41, node_group : 20, was_restarted : false }, //
-        { node_id : 43, node_group : 21, was_restarted : false }, //
-        { node_id : 45, node_group : 22, was_restarted : false }, //
-        { node_id : 47, node_group : 23, was_restarted : false }, //
-        { node_id : 2, node_group : 0, was_restarted : false }, //
-        { node_id : 4, node_group : 1, was_restarted : false }, //
-        { node_id : 6, node_group : 2, was_restarted : false }, //
-        { node_id : 8, node_group : 3, was_restarted : false }, //
-        { node_id : 10, node_group : 4, was_restarted : false }, //
-        { node_id : 12, node_group : 5, was_restarted : false }, //
-        { node_id : 14, node_group : 6, was_restarted : false }, //
-        { node_id : 16, node_group : 7, was_restarted : false }, //
-        { node_id : 18, node_group : 8, was_restarted : false }, //
-        { node_id : 20, node_group : 9, was_restarted : false }, //
-        { node_id : 22, node_group : 10, was_restarted : false }, //
-        { node_id : 24, node_group : 11, was_restarted : false }, //
-        { node_id : 26, node_group : 12, was_restarted : false }, //
-        { node_id : 28, node_group : 13, was_restarted : false }, //
-        { node_id : 30, node_group : 14, was_restarted : false }, //
-        { node_id : 32, node_group : 15, was_restarted : false }, //
-        { node_id : 34, node_group : 16, was_restarted : false }, //
-        { node_id : 36, node_group : 17, was_restarted : false }, //
-        { node_id : 38, node_group : 18, was_restarted : false }, //
-        { node_id : 40, node_group : 19, was_restarted : false }, //
-        { node_id : 42, node_group : 20, was_restarted : false }, //
-        { node_id : 44, node_group : 21, was_restarted : false }, //
-        { node_id : 46, node_group : 22, was_restarted : false }, //
-        { node_id : 48, node_group : 23, was_restarted : false } //
-    };
+    size_t i = 0;
+
+    memset(nodes, 0, sizeof(struct restart_node_status_s) * 48);
+    memset(expected_nodes, 0, sizeof(struct restart_node_status_s) * 48);
+
+    init_node_status(&(nodes[i++]), 47, 23);
+    init_node_status(&(nodes[i++]), 20, 9);
+    init_node_status(&(nodes[i++]), 39, 19);
+    init_node_status(&(nodes[i++]), 26, 12);
+    init_node_status(&(nodes[i++]), 6, 2);
+    init_node_status(&(nodes[i++]), 37, 18);
+    init_node_status(&(nodes[i++]), 7, 3);
+    init_node_status(&(nodes[i++]), 29, 14);
+    init_node_status(&(nodes[i++]), 40, 19);
+    init_node_status(&(nodes[i++]), 25, 12);
+    init_node_status(&(nodes[i++]), 36, 17);
+    init_node_status(&(nodes[i++]), 1, 0);
+    init_node_status(&(nodes[i++]), 8, 3);
+    init_node_status(&(nodes[i++]), 9, 4);
+    init_node_status(&(nodes[i++]), 30, 14);
+    init_node_status(&(nodes[i++]), 14, 6);
+    init_node_status(&(nodes[i++]), 31, 15);
+    init_node_status(&(nodes[i++]), 13, 6);
+    init_node_status(&(nodes[i++]), 21, 10);
+    init_node_status(&(nodes[i++]), 16, 7);
+    init_node_status(&(nodes[i++]), 42, 20);
+    init_node_status(&(nodes[i++]), 3, 1);
+    init_node_status(&(nodes[i++]), 24, 11);
+    init_node_status(&(nodes[i++]), 5, 2);
+    init_node_status(&(nodes[i++]), 2, 0);
+    init_node_status(&(nodes[i++]), 18, 8);
+    init_node_status(&(nodes[i++]), 11, 5);
+    init_node_status(&(nodes[i++]), 27, 13);
+    init_node_status(&(nodes[i++]), 33, 16);
+    init_node_status(&(nodes[i++]), 44, 21);
+    init_node_status(&(nodes[i++]), 38, 18);
+    init_node_status(&(nodes[i++]), 15, 7);
+    init_node_status(&(nodes[i++]), 10, 4);
+    init_node_status(&(nodes[i++]), 32, 15);
+    init_node_status(&(nodes[i++]), 4, 1);
+    init_node_status(&(nodes[i++]), 46, 22);
+    init_node_status(&(nodes[i++]), 48, 23);
+    init_node_status(&(nodes[i++]), 43, 21);
+    init_node_status(&(nodes[i++]), 28, 13);
+    init_node_status(&(nodes[i++]), 41, 20);
+    init_node_status(&(nodes[i++]), 35, 17);
+    init_node_status(&(nodes[i++]), 22, 10);
+    init_node_status(&(nodes[i++]), 12, 5);
+    init_node_status(&(nodes[i++]), 19, 9);
+    init_node_status(&(nodes[i++]), 34, 16);
+    init_node_status(&(nodes[i++]), 45, 22);
+    init_node_status(&(nodes[i++]), 17, 8);
+    init_node_status(&(nodes[i++]), 23, 11);
+
+    i = 0;
+    init_node_status(&(expected_nodes[i++]), 1, 0);
+    init_node_status(&(expected_nodes[i++]), 3, 1);
+    init_node_status(&(expected_nodes[i++]), 5, 2);
+    init_node_status(&(expected_nodes[i++]), 7, 3);
+    init_node_status(&(expected_nodes[i++]), 9, 4);
+    init_node_status(&(expected_nodes[i++]), 13, 6);
+    init_node_status(&(expected_nodes[i++]), 15, 7);
+    init_node_status(&(expected_nodes[i++]), 17, 8);
+    init_node_status(&(expected_nodes[i++]), 19, 9);
+    init_node_status(&(expected_nodes[i++]), 21, 10);
+    init_node_status(&(expected_nodes[i++]), 23, 11);
+    init_node_status(&(expected_nodes[i++]), 25, 12);
+    init_node_status(&(expected_nodes[i++]), 27, 13);
+    init_node_status(&(expected_nodes[i++]), 29, 14);
+    init_node_status(&(expected_nodes[i++]), 31, 15);
+    init_node_status(&(expected_nodes[i++]), 33, 16);
+    init_node_status(&(expected_nodes[i++]), 35, 17);
+    init_node_status(&(expected_nodes[i++]), 37, 18);
+    init_node_status(&(expected_nodes[i++]), 39, 19);
+    init_node_status(&(expected_nodes[i++]), 41, 20);
+    init_node_status(&(expected_nodes[i++]), 43, 21);
+    init_node_status(&(expected_nodes[i++]), 45, 22);
+    init_node_status(&(expected_nodes[i++]), 47, 23);
+    init_node_status(&(expected_nodes[i++]), 2, 0);
+    init_node_status(&(expected_nodes[i++]), 4, 1);
+    init_node_status(&(expected_nodes[i++]), 6, 2);
+    init_node_status(&(expected_nodes[i++]), 8, 3);
+    init_node_status(&(expected_nodes[i++]), 10, 4);
+    init_node_status(&(expected_nodes[i++]), 12, 5);
+    init_node_status(&(expected_nodes[i++]), 14, 6);
+    init_node_status(&(expected_nodes[i++]), 16, 7);
+    init_node_status(&(expected_nodes[i++]), 18, 8);
+    init_node_status(&(expected_nodes[i++]), 20, 9);
+    init_node_status(&(expected_nodes[i++]), 22, 10);
+    init_node_status(&(expected_nodes[i++]), 24, 11);
+    init_node_status(&(expected_nodes[i++]), 26, 12);
+    init_node_status(&(expected_nodes[i++]), 28, 13);
+    init_node_status(&(expected_nodes[i++]), 30, 14);
+    init_node_status(&(expected_nodes[i++]), 32, 15);
+    init_node_status(&(expected_nodes[i++]), 34, 16);
+    init_node_status(&(expected_nodes[i++]), 36, 17);
+    init_node_status(&(expected_nodes[i++]), 38, 18);
+    init_node_status(&(expected_nodes[i++]), 40, 19);
+    init_node_status(&(expected_nodes[i++]), 42, 20);
+    init_node_status(&(expected_nodes[i++]), 44, 21);
+    init_node_status(&(expected_nodes[i++]), 46, 22);
+    init_node_status(&(expected_nodes[i++]), 48, 23);
+
     return test_node_sorting(nodes, 48, expected_nodes, verbose);
 }
 
 int test_node_sorting_6(int verbose)
 {
-    struct restart_node_status_s nodes[] = {
-        //
-        { node_id : 2, node_group : 0, was_restarted : false }, //
-        { node_id : 3, node_group : 0, was_restarted : false }, //
-        { node_id : 4, node_group : 1, was_restarted : false }, //
-        { node_id : 5, node_group : 1, was_restarted : false }, //
-        { node_id : 6, node_group : 2, was_restarted : false }, //
-        { node_id : 7, node_group : 2, was_restarted : false } //
-    };
+    struct restart_node_status_s nodes[6];
+    struct restart_node_status_s expected_nodes[6];
 
-    struct restart_node_status_s expected_nodes[] = {
-        //
-        { node_id : 2, node_group : 0, was_restarted : false }, //
-        { node_id : 4, node_group : 1, was_restarted : false }, //
-        { node_id : 6, node_group : 2, was_restarted : false }, //
-        { node_id : 3, node_group : 0, was_restarted : false }, //
-        { node_id : 5, node_group : 1, was_restarted : false }, //
-        { node_id : 7, node_group : 2, was_restarted : false } //
-    };
+    memset(nodes, 0, sizeof(struct restart_node_status_s) * 6);
+    memset(expected_nodes, 0, sizeof(struct restart_node_status_s) * 6);
+
+    init_node_status(&(nodes[0]), 2, 0);
+    init_node_status(&(nodes[1]), 3, 0);
+    init_node_status(&(nodes[2]), 4, 1);
+    init_node_status(&(nodes[3]), 5, 1);
+    init_node_status(&(nodes[4]), 6, 2);
+    init_node_status(&(nodes[5]), 7, 2);
+
+    init_node_status(&(expected_nodes[0]), 2, 0);
+    init_node_status(&(expected_nodes[1]), 4, 1);
+    init_node_status(&(expected_nodes[2]), 6, 2);
+    init_node_status(&(expected_nodes[3]), 3, 0);
+    init_node_status(&(expected_nodes[4]), 5, 1);
+    init_node_status(&(expected_nodes[5]), 7, 2);
+
     return test_node_sorting(nodes, 6, expected_nodes, verbose);
 }
 
