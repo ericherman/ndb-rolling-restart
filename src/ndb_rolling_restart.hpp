@@ -50,4 +50,6 @@ void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
 
 void report_cluster_state(struct ndb_connection_context_s* ndb_ctx);
 
+int ndb_rolling_restart(struct ndb_connection_context_s* ndb_ctx);
+
 #endif /* BINARY_SEARCH_H */
