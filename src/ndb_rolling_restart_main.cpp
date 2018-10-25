@@ -97,6 +97,13 @@ int main(int argc, char** argv)
     struct restart_node_status_s node_restarts[number_of_nodes];
     get_node_restarts(ndb_ctx.cluster_state, node_restarts, number_of_nodes);
 
+    if (false) {
+        // Testing suggests a possible bug here.
+        // For now, rather than sort, we'll rely upon
+        // the last_group check while looping over groups
+        sort_node_restarts(node_restarts, number_of_nodes);
+    }
+
     unsigned restarted = 0;
     int last_group = -1;
     for (size_t i = 0; restarted < number_of_nodes; ++i) {

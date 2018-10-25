@@ -107,6 +107,20 @@ test-binary-search-int-basic: echeck.o binary_search.o
 		tests/test-binary-search-int-basic.c \
 		-o test-binary-search-int-basic
 
+test-sort-nodes: echeck.o ndb_rolling_restart \
+		tests/test-sort-nodes.cpp
+	$(CXX) $(CXXFLAGS) -Itests/ -Isrc/ \
+		tests/test-sort-nodes.cpp \
+		$(LDFLAGS) \
+		binary_search.o \
+		ndb_rolling_restart.o \
+		echeck.o \
+		$(NDB_LIBS) \
+		-o test-sort-nodes $(LDADD)
+
+check-sort-nodes: test-sort-nodes
+	./test-sort-nodes
+
 check: test-binary-search-int-basic
 	./test-binary-search-int-basic
 

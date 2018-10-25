@@ -329,8 +329,6 @@ void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
         node_restarts[i].node_id = node_state->node_id;
         node_restarts[i].was_restarted = 0;
     }
-
-    sort_node_restarts(node_restarts, number_of_nodes);
 }
 
 void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
