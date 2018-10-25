@@ -30,10 +30,12 @@ CXX=/usr/bin/c++
 CC=/usr/bin/cc
 FORMAT=clang-format-6.0 --style=WebKit
 
+ifeq ($(WITH_ASAN), 1)
+	ASAN=-static-libasan -fsanitize=address
+endif
 
 NDB_LDFLAGS_DYNAMIC=\
-	-static-libasan \
-	-fsanitize=address \
+	$(ASAN) \
 	-rdynamic \
 	-L$(MYSQL_NDB_DIR)/lib \
 	-Wl,-rpath,$(MYSQL_NDB_DIR)/lib
@@ -134,4 +136,6 @@ tidy:
         done
 
 clean:
-	rm -vf *.o ndb_rolling_restart
+	rm -vf *.o ndb_rolling_restart \
+		test-binary-search-int-basic \
+		test-sort-nodes
