@@ -1,6 +1,7 @@
 ndb_rolling_restart
 ndb-rolling-restart
 test-binary-search-int-basic
+test-sort-nodes
 *.o
 *~
 *.old
