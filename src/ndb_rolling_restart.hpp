@@ -49,8 +49,8 @@ int restart_node(ndb_connection_context_s& ndb_ctx, int node_id);
 
 void sort_node_restarts(std::vector<restart_node_status_s>& nodes);
 
-std::vector<restart_node_status_s> get_node_restarts(ndb_mgm_cluster_state* cluster_state,
-                                                     size_t number_of_nodes);
+std::vector<restart_node_status_s> get_node_restarts(
+    ndb_mgm_cluster_state* cluster_state, size_t number_of_nodes);
 
 void report_cluster_state(ndb_connection_context_s& ndb_ctx);
 

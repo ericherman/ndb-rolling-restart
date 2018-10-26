@@ -120,7 +120,7 @@ int init_ndb_connection(ndb_connection_context_s& ndb_ctx)
 }
 
 static const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
-                                           ndb_mgm_node_state node_state)
+    ndb_mgm_node_state node_state)
 {
     assert(ndb_mgm_handle);
 
@@ -243,20 +243,17 @@ void sort_node_restarts(std::vector<restart_node_status_s>& nodes)
     //and then fetch one by one from each group
     assert(nodes.size());
     std::sort(nodes.begin(), nodes.end(),
-         [](const restart_node_status_s & n1, const restart_node_status_s & n2)
-         { return n1.node_id < n2.node_id; });
+        [](const restart_node_status_s& n1, const restart_node_status_s& n2) //
+        { return n1.node_id < n2.node_id; });
     std::multimap<decltype(nodes.front().node_group), size_t> indexes;
-    
-    for (size_t i = 0; i < nodes.size(); ++i)
-    {
+
+    for (size_t i = 0; i < nodes.size(); ++i) {
         indexes.emplace(nodes[i].node_group, i);
     }
 
     std::vector<restart_node_status_s> sorted_nodes;
-    while(!indexes.empty())
-    {
-        for (auto it = indexes.begin(); it != indexes.end();)
-        {
+    while (!indexes.empty()) {
+        for (auto it = indexes.begin(); it != indexes.end();) {
             auto gid = it->first;
             sorted_nodes.emplace_back(std::move(nodes[it->second]));
             indexes.erase(it);
@@ -267,16 +264,16 @@ void sort_node_restarts(std::vector<restart_node_status_s>& nodes)
 }
 
 vector<restart_node_status_s> get_node_restarts(ndb_mgm_cluster_state* cluster_state,
-                                                size_t number_of_nodes)
-{    
+    size_t number_of_nodes)
+{
     assert(cluster_state);
     assert(number_of_nodes);
 
     vector<restart_node_status_s> node_restarts;
     for (size_t i = 0; i < number_of_nodes; ++i) {
-        node_restarts.emplace_back(restart_node_status_s{cluster_state->node_states[i].node_id, 
-                                                         cluster_state->node_states[i].node_group, 
-                                                         false});
+        node_restarts.emplace_back(restart_node_status_s{ cluster_state->node_states[i].node_id,
+            cluster_state->node_states[i].node_group,
+            false });
     }
     return node_restarts;
 }
@@ -349,7 +346,8 @@ int ndb_rolling_restart(ndb_connection_context_s& ndb_ctx)
     }
 
     auto number_of_nodes = (size_t)ndb_ctx.cluster_state->no_of_nodes;
-    auto node_restarts = get_node_restarts(ndb_ctx.cluster_state, number_of_nodes);
+    auto node_restarts = get_node_restarts(ndb_ctx.cluster_state,
+        number_of_nodes);
 
     assert(number_of_nodes == node_restarts.size());
 
