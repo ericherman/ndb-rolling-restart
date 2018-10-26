@@ -102,30 +102,6 @@ int test_node_sorting_48(int verbose)
     };
 
     std::vector<restart_node_status_s> expected_nodes = {
-        restart_node_status_s{ 1, 0, false },
-        restart_node_status_s{ 3, 1, false },
-        restart_node_status_s{ 5, 2, false },
-        restart_node_status_s{ 7, 3, false },
-        restart_node_status_s{ 9, 4, false },
-        restart_node_status_s{ 11, 5, false },
-        restart_node_status_s{ 13, 6, false },
-        restart_node_status_s{ 15, 7, false },
-        restart_node_status_s{ 17, 8, false },
-        restart_node_status_s{ 19, 9, false },
-        restart_node_status_s{ 21, 10, false },
-        restart_node_status_s{ 23, 11, false },
-        restart_node_status_s{ 25, 12, false },
-        restart_node_status_s{ 27, 13, false },
-        restart_node_status_s{ 29, 14, false },
-        restart_node_status_s{ 31, 15, false },
-        restart_node_status_s{ 33, 16, false },
-        restart_node_status_s{ 35, 17, false },
-        restart_node_status_s{ 37, 18, false },
-        restart_node_status_s{ 39, 19, false },
-        restart_node_status_s{ 41, 20, false },
-        restart_node_status_s{ 43, 21, false },
-        restart_node_status_s{ 45, 22, false },
-        restart_node_status_s{ 47, 23, false },
         restart_node_status_s{ 2, 0, false },
         restart_node_status_s{ 4, 1, false },
         restart_node_status_s{ 6, 2, false },
@@ -149,7 +125,31 @@ int test_node_sorting_48(int verbose)
         restart_node_status_s{ 42, 20, false },
         restart_node_status_s{ 44, 21, false },
         restart_node_status_s{ 46, 22, false },
-        restart_node_status_s{ 48, 23, false }
+        restart_node_status_s{ 48, 23, false },
+        restart_node_status_s{ 1, 0, false },
+        restart_node_status_s{ 3, 1, false },
+        restart_node_status_s{ 5, 2, false },
+        restart_node_status_s{ 7, 3, false },
+        restart_node_status_s{ 9, 4, false },
+        restart_node_status_s{ 11, 5, false },
+        restart_node_status_s{ 13, 6, false },
+        restart_node_status_s{ 15, 7, false },
+        restart_node_status_s{ 17, 8, false },
+        restart_node_status_s{ 19, 9, false },
+        restart_node_status_s{ 21, 10, false },
+        restart_node_status_s{ 23, 11, false },
+        restart_node_status_s{ 25, 12, false },
+        restart_node_status_s{ 27, 13, false },
+        restart_node_status_s{ 29, 14, false },
+        restart_node_status_s{ 31, 15, false },
+        restart_node_status_s{ 33, 16, false },
+        restart_node_status_s{ 35, 17, false },
+        restart_node_status_s{ 37, 18, false },
+        restart_node_status_s{ 39, 19, false },
+        restart_node_status_s{ 41, 20, false },
+        restart_node_status_s{ 43, 21, false },
+        restart_node_status_s{ 45, 22, false },
+        restart_node_status_s{ 47, 23, false }
     };
 
     return test_node_sorting(nodes, expected_nodes, verbose);
@@ -167,12 +167,12 @@ int test_node_sorting_6(int verbose)
     };
 
     std::vector<restart_node_status_s> expected_nodes = {
-        restart_node_status_s{ 2, 0, false },
-        restart_node_status_s{ 4, 1, false },
-        restart_node_status_s{ 6, 2, false },
         restart_node_status_s{ 3, 0, false },
         restart_node_status_s{ 5, 1, false },
-        restart_node_status_s{ 7, 2, false }
+        restart_node_status_s{ 7, 2, false },
+        restart_node_status_s{ 2, 0, false },
+        restart_node_status_s{ 4, 1, false },
+        restart_node_status_s{ 6, 2, false }
     };
 
     return test_node_sorting(nodes, expected_nodes, verbose);

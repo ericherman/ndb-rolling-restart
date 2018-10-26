@@ -244,7 +244,7 @@ void sort_node_restarts(std::vector<restart_node_status_s>& nodes)
     assert(nodes.size());
     std::sort(nodes.begin(), nodes.end(),
         [](const restart_node_status_s& n1, const restart_node_status_s& n2) //
-        { return n1.node_id < n2.node_id; });
+        { return n1.node_id > n2.node_id; });
     std::multimap<decltype(nodes.front().node_group), size_t> indexes;
 
     for (size_t i = 0; i < nodes.size(); ++i) {
