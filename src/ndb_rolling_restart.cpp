@@ -14,33 +14,33 @@
  */
 
 #include "ndb_rolling_restart.hpp"
-#include "binary_search.h"
-#include <assert.h>
+
+#include <algorithm>
+#include <cassert>
 #include <iostream>
-#include <string.h>
-#include <unistd.h>
+#include <map>
+#include <string>
+#include <thread>
 
 using namespace std;
 
 #define Cerr cerr << __FILE__ << ":" << __LINE__ << ": "
 
-void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
+void close_ndb_connection(ndb_connection_context_s& ndb_ctx)
 {
-    assert(ndb_ctx);
-
-    if (ndb_ctx->cluster_state) {
-        free((void*)ndb_ctx->cluster_state);
-        ndb_ctx->cluster_state = nullptr;
+    if (ndb_ctx.cluster_state) {
+        free((void*)ndb_ctx.cluster_state);
+        ndb_ctx.cluster_state = nullptr;
     }
 
-    if (ndb_ctx->ndb_mgm_handle) {
-        ndb_mgm_destroy_handle(&(ndb_ctx->ndb_mgm_handle));
-        ndb_ctx->ndb_mgm_handle = nullptr;
+    if (ndb_ctx.ndb_mgm_handle) {
+        ndb_mgm_destroy_handle(&(ndb_ctx.ndb_mgm_handle));
+        ndb_ctx.ndb_mgm_handle = nullptr;
     }
 
-    if (ndb_ctx->connection) {
-        delete (ndb_ctx->connection);
-        ndb_ctx->connection = nullptr;
+    if (ndb_ctx.connection) {
+        delete (ndb_ctx.connection);
+        ndb_ctx.connection = nullptr;
     }
 }
 
@@ -71,18 +71,16 @@ static Ndb_cluster_connection* ndb_connect(const char* connect_string,
     return cluster_connection;
 }
 
-int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
+int init_ndb_connection(ndb_connection_context_s& ndb_ctx)
 {
-    assert(ndb_ctx);
-
-    ndb_ctx->connection = ndb_connect(ndb_ctx->connect_string,
-        ndb_ctx->wait_seconds);
-    if (!ndb_ctx->connection) {
+    ndb_ctx.connection = ndb_connect(ndb_ctx.connect_string.c_str(),
+        ndb_ctx.wait_seconds);
+    if (!ndb_ctx.connection) {
         return 1;
     }
 
-    ndb_ctx->ndb_mgm_handle = ndb_mgm_create_handle();
-    if (!ndb_ctx->ndb_mgm_handle) {
+    ndb_ctx.ndb_mgm_handle = ndb_mgm_create_handle();
+    if (!ndb_ctx.ndb_mgm_handle) {
         Cerr << "Error: ndb_mgm_create_handle returned null?" << endl;
         close_ndb_connection(ndb_ctx);
         return 1;
@@ -92,12 +90,12 @@ int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
     int retry_delay_secs = 3;
     int verbose = 1;
 
-    int ret = ndb_mgm_connect(ndb_ctx->ndb_mgm_handle, no_retries,
+    int ret = ndb_mgm_connect(ndb_ctx.ndb_mgm_handle, no_retries,
         retry_delay_secs, verbose);
 
     if (ret != 0) {
         Cerr "ndb_mgm_get_latest_error: "
-            << ndb_mgm_get_latest_error_msg(ndb_ctx->ndb_mgm_handle)
+            << ndb_mgm_get_latest_error_msg(ndb_ctx.ndb_mgm_handle)
             << endl;
         close_ndb_connection(ndb_ctx);
         return 1;
@@ -109,10 +107,10 @@ int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
         NDB_MGM_NODE_TYPE_UNKNOWN /* weird */
     };
 
-    ndb_ctx->cluster_state = ndb_mgm_get_status2(ndb_ctx->ndb_mgm_handle,
+    ndb_ctx.cluster_state = ndb_mgm_get_status2(ndb_ctx.ndb_mgm_handle,
         node_types);
 
-    if (!ndb_ctx->cluster_state) {
+    if (!ndb_ctx.cluster_state) {
         Cerr << "ndb_mgm_get_status2 returned null?" << endl;
         close_ndb_connection(ndb_ctx);
         return 1;
@@ -122,16 +120,15 @@ int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx)
 }
 
 static const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
-    struct ndb_mgm_node_state* node_state)
+                                           ndb_mgm_node_state node_state)
 {
     assert(ndb_mgm_handle);
-    assert(node_state);
 
     int arg_count = 1;
     int args[1] = { 1000 };
-    struct ndb_mgm_reply reply;
+    ndb_mgm_reply reply;
     reply.return_code = 0;
-    int node_id = node_state->node_id;
+    int node_id = node_state.node_id;
     int rv;
 
     rv = ndb_mgm_dump_state(ndb_mgm_handle, node_id, args, arg_count, &reply);
@@ -146,38 +143,30 @@ static const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
     return "ok";
 }
 
-static int get_online_node_count(struct ndb_mgm_cluster_state* cluster_state)
+static int get_online_node_count(ndb_mgm_cluster_state* cluster_state)
 {
-    int online_nodes = 0;
-
     assert(cluster_state);
-    for (int i = 0; i < cluster_state->no_of_nodes; ++i) {
-        struct ndb_mgm_node_state* node_state;
-        node_state = &(cluster_state->node_states[i]);
-        if (node_state->node_status == NDB_MGM_NODE_STATUS_STARTED) {
-            ++online_nodes;
-        }
-    }
 
-    return online_nodes;
+    return std::count_if(cluster_state->node_states,
+                         cluster_state->node_states + cluster_state->no_of_nodes*sizeof(ndb_mgm_node_state),
+                         [](const ndb_mgm_node_state& state){ return state.node_status == NDB_MGM_NODE_STATUS_STARTED; });
 }
 
-static void sleep_reconnect(struct ndb_connection_context_s* ndb_ctx)
+static void sleep_reconnect(ndb_connection_context_s& ndb_ctx)
 {
     close_ndb_connection(ndb_ctx);
-    cout << "sleep(" << ndb_ctx->wait_seconds << ")" << endl;
-    sleep(ndb_ctx->wait_seconds);
+    cout << "sleep(" << ndb_ctx.wait_seconds << ")" << endl;
+    this_thread::sleep_for(chrono::seconds(ndb_ctx.wait_seconds));
     int err = init_ndb_connection(ndb_ctx);
     if (err) {
         Cerr << "could not reconnect to ndb" << endl;
     }
 }
 
-static int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx,
+static int loop_wait_until_ready(ndb_connection_context_s& ndb_ctx,
     int node_id)
 {
-
-    assert(ndb_ctx->connection);
+    assert(ndb_ctx.connection);
 
     int cnt = 1;
     int nodes[1] = { node_id };
@@ -185,9 +174,9 @@ static int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx,
     int ret = -1;
     while (ret == -1) {
         cout << "wait_until_ready node " << nodes[0]
-             << " timeout: " << ndb_ctx->wait_seconds << endl;
-        ret = ndb_ctx->connection->wait_until_ready(nodes, cnt,
-            ndb_ctx->wait_seconds);
+             << " timeout: " << ndb_ctx.wait_seconds << endl;
+        ret = ndb_ctx.connection->wait_until_ready(nodes, cnt,
+            ndb_ctx.wait_seconds);
         if (ret <= -1) {
             Cerr << "ndb_mgm_restart4 returned error: " << ret << endl;
             sleep_reconnect(ndb_ctx);
@@ -196,10 +185,8 @@ static int loop_wait_until_ready(struct ndb_connection_context_s* ndb_ctx,
     return 0;
 }
 
-int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
+int restart_node(ndb_connection_context_s& ndb_ctx, int node_id)
 {
-    assert(ndb_ctx);
-
     int ret = 0;
     int disconnect = 0;
     int cnt = 1;
@@ -215,7 +202,7 @@ int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
 
     ret = -1;
     while (ret <= 0) {
-        ret = ndb_mgm_restart4(ndb_ctx->ndb_mgm_handle, cnt, nodes, initial,
+        ret = ndb_mgm_restart4(ndb_ctx.ndb_mgm_handle, cnt, nodes, initial,
             nostart, abort, force, &disconnect);
         if (ret <= 0) {
             cout << __FILE__ << ":" << __LINE__
@@ -229,7 +216,7 @@ int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
         sleep_reconnect(ndb_ctx);
     }
 
-    if (ndb_ctx->wait_after_restart) {
+    if (ndb_ctx.wait_after_restart) {
         loop_wait_until_ready(ndb_ctx, nodes[0]);
     }
 
@@ -237,183 +224,131 @@ int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id)
     return 0;
 }
 
-void sort_node_restarts(struct restart_node_status_s* node_restarts,
-    size_t number_of_nodes)
+void sort_node_restarts(std::vector<restart_node_status_s>& nodes)
 {
-    assert(node_restarts);
-    assert(number_of_nodes);
-
-    // group them so they alternate by groups, lowest group id first
-
-    // there can't be more groups than nodes
-    // technically, ISO C++ forbids variable length arrays
-    int group_ids[number_of_nodes];
-    memset(group_ids, 0, sizeof(int) * number_of_nodes);
-    size_t group_count = 0;
-
-    // create a sorted array of group ids without duplicates
-    size_t target_index;
-    for (size_t i = 0; i < number_of_nodes; ++i) {
-        binary_search_result search_result = binary_search_ints(group_ids,
-            group_count, node_restarts[i].node_group, &target_index);
-        if (search_result == binary_search_insert) {
-            // we have enough space for sure, so we can move all current
-            // elements over without writing past the end of the array
-            // this way we end up with a sorted array (ascending)
-            size_t elements_to_move = group_count - target_index;
-            memmove((group_ids + target_index + 1), (group_ids + target_index),
-                (sizeof(int) * elements_to_move));
-            group_ids[target_index] = node_restarts[i].node_group;
-            ++group_count;
-        }
-        // already in the array
+    //Build a multimap so that different index fall into different group
+    //and then fetch one by one from each group
+    assert(nodes.size());
+    std::multimap<decltype(nodes.front().node_group), size_t> indexes;
+    
+    for (size_t i = 0; i < nodes.size(); ++i)
+    {
+        indexes.emplace(nodes[i].node_group, i);
     }
 
-    // now "take" nodes in turn from each of the groups
-    // the convenient way is to start at node 0,
-    // find a node from group 0 and swap them
-    // then got to node 1 and to get a node from group 1 etc,
-    //     looping the groups when at the end
-    // if there is no node left from a group,
-    // then remove that group from the list and keep going
-    size_t update_node_index = 0;
-    size_t current_node_index = 0;
-    size_t current_group_index = 0;
-    restart_node_status_s temp;
-    while (update_node_index < number_of_nodes) {
-
-        current_node_index = update_node_index;
-        while (node_restarts[current_node_index].node_group
-            != group_ids[current_group_index]) {
-            ++current_node_index;
-
-            // if we reach the end without finding any,
-            // then this group is exhausted.
-            // remove this group from the list,
-            // update the group count
-            // and ensure current_group_index is within bounds
-            if (current_node_index == number_of_nodes) {
-
-                // move 1 left
-                size_t elements_to_move = group_count - current_group_index - 1;
-
-                memmove((group_ids + current_group_index),
-                    (group_ids + current_group_index + 1),
-                    (sizeof(int) * elements_to_move));
-                --group_count;
-
-                // in case it was at the last one, point back at 0
-                current_group_index %= group_count;
-                // start search over at the beginning
-                current_node_index = update_node_index;
-            }
+    std::vector<restart_node_status_s> sorted_nodes;
+    while(!indexes.empty())
+    {
+        for (auto it = indexes.begin(); it != indexes.end();)
+        {
+            auto gid = it->first;
+            sorted_nodes.emplace_back(std::move(nodes[it->second]));
+            indexes.erase(it);
+            it = indexes.upper_bound(gid);
         }
-
-        temp = node_restarts[update_node_index];
-        node_restarts[update_node_index] = node_restarts[current_node_index];
-        node_restarts[current_node_index] = temp;
-
-        ++update_node_index;
-        current_group_index = (current_group_index + 1) % group_count;
     }
+    sorted_nodes.swap(nodes);
 }
 
-void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
-    struct restart_node_status_s* node_restarts, size_t number_of_nodes)
-{
+vector<restart_node_status_s> get_node_restarts(ndb_mgm_cluster_state* cluster_state,
+                                                size_t number_of_nodes)
+{    
     assert(cluster_state);
     assert(number_of_nodes);
 
+    vector<restart_node_status_s> node_restarts;
     for (size_t i = 0; i < number_of_nodes; ++i) {
-        struct ndb_mgm_node_state* node_state;
-        node_state = &(cluster_state->node_states[i]);
-        node_restarts[i].node_group = node_state->node_group;
-        node_restarts[i].node_id = node_state->node_id;
-        node_restarts[i].was_restarted = 0;
+        node_restarts.emplace_back(restart_node_status_s{cluster_state->node_states[i].node_id, 
+                                                         cluster_state->node_states[i].node_group, 
+                                                         false});
     }
+    return node_restarts;
 }
 
-void report_cluster_state(struct ndb_connection_context_s* ndb_ctx)
+void report_cluster_state(ndb_connection_context_s& ndb_ctx)
 {
-    assert(ndb_ctx);
-    assert(ndb_ctx->connection);
-    assert(ndb_ctx->cluster_state);
+    assert(ndb_ctx.connection);
+    assert(ndb_ctx.cluster_state);
 
-    const char* cluster_name = ndb_ctx->connection->get_system_name();
+    auto cluster_name = ndb_ctx.connection->get_system_name();
     cout << "cluster_name: " << cluster_name << endl;
     cout << "cluster_state->no_of_nodes: "
-         << ndb_ctx->cluster_state->no_of_nodes << endl;
+         << ndb_ctx.cluster_state->no_of_nodes << endl;
 
-    for (int i = 0; i < ndb_ctx->cluster_state->no_of_nodes; ++i) {
+    for (int i = 0; i < ndb_ctx.cluster_state->no_of_nodes; ++i) {
 
-        struct ndb_mgm_node_state* node_state;
-        node_state = &(ndb_ctx->cluster_state->node_states[i]);
+        auto node_state = ndb_ctx.cluster_state->node_states[i];
 
-        cout << "node_id: " << node_state->node_id << " ("
-             << ndb_mgm_get_node_type_string(node_state->node_type) << ")"
+        cout << "node_id: " << node_state.node_id << " ("
+             << ndb_mgm_get_node_type_string(node_state.node_type) << ")"
              << endl
-             << "\tstatus: " << node_state->node_status << " ("
-             << ndb_mgm_get_node_status_string(node_state->node_status)
+             << "\tstatus: " << node_state.node_status << " ("
+             << ndb_mgm_get_node_status_string(node_state.node_status)
              << ")" << endl;
 
-        if ((node_state->node_type == NDB_MGM_NODE_TYPE_NDB)
-            && (node_state->node_status == NDB_MGM_NODE_STATUS_STARTING)) {
-            cout << "\tstart_phase: " << node_state->start_phase
+        if ((node_state.node_type == NDB_MGM_NODE_TYPE_NDB)
+            && (node_state.node_status == NDB_MGM_NODE_STATUS_STARTING)) {
+            cout << "\tstart_phase: " << node_state.start_phase
                  << endl;
         }
 
-        cout << "\tdynamic_id: " << node_state->dynamic_id << endl
-             << "\tnode_group: " << node_state->node_group << endl
-             << "\tversion: " << node_state->version << endl
-             << "\tmysql_version: " << node_state->mysql_version << endl
-             << "\tconnect_count: " << node_state->connect_count << endl
-             << "\tconnect_address: " << node_state->connect_address << endl
+        cout << "\tdynamic_id: " << node_state.dynamic_id << endl
+             << "\tnode_group: " << node_state.node_group << endl
+             << "\tversion: " << node_state.version << endl
+             << "\tmysql_version: " << node_state.mysql_version << endl
+             << "\tconnect_count: " << node_state.connect_count << endl
+             << "\tconnect_address: " << node_state.connect_address << endl
              << "\tndb_mgm_dump_state: "
-             << get_ndb_mgm_dump_state(ndb_ctx->ndb_mgm_handle, node_state)
+             << get_ndb_mgm_dump_state(ndb_ctx.ndb_mgm_handle, node_state)
              << endl;
     }
 
-    int online_nodes = get_online_node_count(ndb_ctx->cluster_state);
+    int online_nodes = get_online_node_count(ndb_ctx.cluster_state);
 
-    int offline_nodes = (ndb_ctx->cluster_state->no_of_nodes - online_nodes);
+    int offline_nodes = (ndb_ctx.cluster_state->no_of_nodes - online_nodes);
 
-    cout << "no_of_nodes: " << ndb_ctx->cluster_state->no_of_nodes << endl
+    cout << "no_of_nodes: " << ndb_ctx.cluster_state->no_of_nodes << endl
          << "online_nodes: " << online_nodes << endl
          << "offline_nodes: " << offline_nodes << endl;
 }
 
-int ndb_rolling_restart(struct ndb_connection_context_s* ndb_ctx)
+int ndb_rolling_restart(ndb_connection_context_s& ndb_ctx)
 {
     ndb_init();
 
     int err = init_ndb_connection(ndb_ctx);
     if (err) {
-        Cerr << "error connecting to ndb '" << ndb_ctx->connect_string << "'"
+        Cerr << "error connecting to ndb '" << ndb_ctx.connect_string << "'"
              << endl;
         return 1;
     }
 
     report_cluster_state(ndb_ctx);
 
-    if (ndb_ctx->cluster_state->no_of_nodes < 1) {
+    if (ndb_ctx.cluster_state->no_of_nodes < 1) {
         Cerr << "cluster_state->no_of_nodes == "
-             << ndb_ctx->cluster_state->no_of_nodes << " ?" << endl;
+             << ndb_ctx.cluster_state->no_of_nodes << " ?" << endl;
         close_ndb_connection(ndb_ctx);
         return EXIT_FAILURE;
     }
-    size_t number_of_nodes = (size_t)ndb_ctx->cluster_state->no_of_nodes;
 
-    struct restart_node_status_s node_restarts[number_of_nodes];
-    get_node_restarts(ndb_ctx->cluster_state, node_restarts, number_of_nodes);
+    auto number_of_nodes = (size_t)ndb_ctx.cluster_state->no_of_nodes;
+    auto node_restarts = get_node_restarts(ndb_ctx.cluster_state, number_of_nodes);
+
+    assert(number_of_nodes == node_restarts.size());
 
     if (false) {
         // Testing suggests a possible bug here.
         // For now, rather than sort, we'll rely upon
         // the last_group check while looping over groups
-        sort_node_restarts(node_restarts, number_of_nodes);
+        std::sort(std::begin(node_restarts), 
+                  std::end(node_restarts),
+                  [](const restart_node_status_s& ns1, const restart_node_status_s& ns2){
+                      return ns1.node_group < ns2.node_group;
+                  });
     }
 
-    unsigned restarted = 0;
+    size_t restarted = 0;
     int last_group = -1;
     for (size_t i = 0; restarted < number_of_nodes; ++i) {
         if (i >= number_of_nodes) {
@@ -423,7 +358,7 @@ int ndb_rolling_restart(struct ndb_connection_context_s* ndb_ctx)
         if ((node_restarts[i].node_group != last_group)
             && !node_restarts[i].was_restarted) {
             ++restarted;
-            node_restarts[i].was_restarted = 1;
+            node_restarts[i].was_restarted = true;
             last_group = node_restarts[i].node_group;
             restart_node(ndb_ctx, node_restarts[i].node_id);
         }

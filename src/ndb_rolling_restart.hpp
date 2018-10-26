@@ -18,16 +18,21 @@
 
 #include <mgmapi/mgmapi.h> // typedef struct ndb_mgm_handle * NdbMgmHandle;
 #include <ndbapi/NdbApi.hpp> // class Ndb_cluster_connection
+#include <string>
+#include <vector>
 
 #define NDB_NORMAL_USER 0
 
 struct ndb_connection_context_s {
-    const char* connect_string;
-    unsigned wait_seconds;
-    unsigned wait_after_restart;
+    std::string connect_string;
+    unsigned wait_seconds = 30;
+    /* skipping wait after restart can be a big speed improvement, but
+       failure to wait after restart can be fatal:
+       https://pastebin.com/raw/1mxgb99s */
+    bool wait_after_restart = true;
     Ndb_cluster_connection* connection;
     NdbMgmHandle ndb_mgm_handle; /* a ptr */
-    struct ndb_mgm_cluster_state* cluster_state;
+    ndb_mgm_cluster_state* cluster_state;
 };
 
 struct restart_node_status_s {
@@ -36,20 +41,19 @@ struct restart_node_status_s {
     bool was_restarted;
 };
 
-void close_ndb_connection(struct ndb_connection_context_s* ndb_ctx);
+void close_ndb_connection(ndb_connection_context_s& ndb_ctx);
 
-int init_ndb_connection(struct ndb_connection_context_s* ndb_ctx);
+int init_ndb_connection(ndb_connection_context_s& ndb_ctx);
 
-int restart_node(struct ndb_connection_context_s* ndb_ctx, int node_id);
+int restart_node(ndb_connection_context_s& ndb_ctx, int node_id);
 
-void sort_node_restarts(struct restart_node_status_s* node_restarts,
-    size_t number_of_nodes);
+void sort_node_restarts(std::vector<restart_node_status_s>& nodes);
 
-void get_node_restarts(struct ndb_mgm_cluster_state* cluster_state,
-    struct restart_node_status_s* node_restarts, size_t number_of_nodes);
+std::vector<restart_node_status_s> get_node_restarts(ndb_mgm_cluster_state* cluster_state,
+                                                     size_t number_of_nodes);
 
-void report_cluster_state(struct ndb_connection_context_s* ndb_ctx);
+void report_cluster_state(ndb_connection_context_s& ndb_ctx);
 
-int ndb_rolling_restart(struct ndb_connection_context_s* ndb_ctx);
+int ndb_rolling_restart(ndb_connection_context_s& ndb_ctx);
 
-#endif /* BINARY_SEARCH_H */
+#endif /* NDB_ROLLING_RESTART_H */
