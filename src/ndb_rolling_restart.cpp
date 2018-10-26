@@ -145,11 +145,24 @@ static const string get_ndb_mgm_dump_state(NdbMgmHandle ndb_mgm_handle,
 
 static int get_online_node_count(ndb_mgm_cluster_state* cluster_state)
 {
-    assert(cluster_state);
+    int online_nodes = 0;
 
-    return std::count_if(cluster_state->node_states,
-                         cluster_state->node_states + cluster_state->no_of_nodes*sizeof(ndb_mgm_node_state),
-                         [](const ndb_mgm_node_state& state){ return state.node_status == NDB_MGM_NODE_STATUS_STARTED; });
+    assert(cluster_state);
+    for (int i = 0; i < cluster_state->no_of_nodes; ++i) {
+        auto node_state = &(cluster_state->node_states[i]);
+        if (node_state->node_status == NDB_MGM_NODE_STATUS_STARTED) {
+            ++online_nodes;
+        }
+    }
+
+    return online_nodes;
+    // this has some off-by-one error returning node_states+1
+    // return std::count_if(
+    //      cluster_state->node_states,
+    //      cluster_state->node_states +
+    //	    cluster_state->no_of_nodes*sizeof(ndb_mgm_node_state),
+    //      [](const ndb_mgm_node_state& state) {
+    //              return state.node_status == NDB_MGM_NODE_STATUS_STARTED; });
 }
 
 static void sleep_reconnect(ndb_connection_context_s& ndb_ctx)
