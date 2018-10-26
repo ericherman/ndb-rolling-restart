@@ -27,19 +27,16 @@ using namespace std;
 int verbose_flag = 0;
 
 /* Global */
-static struct option long_options[] = {
-    { "connection_string", required_argument, NULL, 'c' },
-    { "wait_seconds", required_argument, NULL, 'w' },
+static option long_options[] = {
+    { "connection_string", required_argument, nullptr, 'c' },
+    { "wait_seconds", required_argument, nullptr, 'w' },
     { "verbose", no_argument, &verbose_flag, 1 },
     { 0, 0, 0, 0 }
 };
 
 int main(int argc, char** argv)
 {
-    struct ndb_connection_context_s ndb_ctx;
-
-    ndb_ctx.connect_string = "";
-    ndb_ctx.wait_seconds = 30;
+    ndb_connection_context_s ndb_ctx;
 
     int option_index = 0;
     int c;
@@ -70,10 +67,5 @@ int main(int argc, char** argv)
         }
     }
 
-    /* skipping wait after restart can be a big speed improvement, but
-       failure to wait after restart can be fatal:
-       https://pastebin.com/raw/1mxgb99s */
-    ndb_ctx.wait_after_restart = 1;
-
-    return ndb_rolling_restart(&ndb_ctx);
+    return ndb_rolling_restart(ndb_ctx);
 }
