@@ -263,15 +263,16 @@ void sort_node_restarts(std::vector<restart_node_status_s>& nodes)
     sorted_nodes.swap(nodes);
 }
 
-vector<restart_node_status_s> get_node_restarts(ndb_mgm_cluster_state* cluster_state,
-    size_t number_of_nodes)
+vector<restart_node_status_s> get_node_restarts(
+    ndb_mgm_cluster_state* cluster_state, size_t number_of_nodes)
 {
     assert(cluster_state);
     assert(number_of_nodes);
 
     vector<restart_node_status_s> node_restarts;
     for (size_t i = 0; i < number_of_nodes; ++i) {
-        node_restarts.emplace_back(restart_node_status_s{ cluster_state->node_states[i].node_id,
+        node_restarts.emplace_back(restart_node_status_s{ //
+            cluster_state->node_states[i].node_id,
             cluster_state->node_states[i].node_group,
             false });
     }
