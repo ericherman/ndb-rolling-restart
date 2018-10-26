@@ -7,6 +7,12 @@
 int test_node_sorting(std::vector<restart_node_status_s>& nodes,
     const std::vector<restart_node_status_s>& expected_nodes, int verbose)
 {
+    int failures = check_int_m(nodes.size(), expected_nodes.size(),
+        "node sizes should match");
+    if (failures) {
+        return 1;
+    }
+
     if (verbose) {
         printf("Nodes in input order:\n");
         size_t i = 0;
@@ -29,7 +35,6 @@ int test_node_sorting(std::vector<restart_node_status_s>& nodes,
         }
     }
 
-    int failures = 0;
     for (size_t i = 0; i < nodes.size(); ++i) {
         char buf[80];
         sprintf(buf, "node[%lu].node_id", (unsigned long)i);

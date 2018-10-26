@@ -80,15 +80,19 @@ LDFLAGS=$(NDB_LDFLAGS)
 
 LDADD=$(NDB_LD_ADD)
 
-ndb_rolling_restart: ndb_rolling_restart.o \
-		src/ndb_rolling_restart.hpp src/ndb_rolling_restart_main.cpp
-	$(CXX) -c $(CXXFLAGS) src/ndb_rolling_restart_main.cpp \
-		-o ndb_rolling_restart_main.o
+all: ndb_rolling_restart
+
+ndb_rolling_restart: ndb_rolling_restart.o ndb_rolling_restart_main.o
 	$(CXX) $(LDFLAGS) \
 		ndb_rolling_restart.o \
 		ndb_rolling_restart_main.o \
 		$(NDB_LIBS) \
 		-o ndb_rolling_restart $(LDADD)
+
+ndb_rolling_restart_main.o: src/ndb_rolling_restart.hpp \
+		src/ndb_rolling_restart_main.cpp
+	$(CXX) -c $(CXXFLAGS) src/ndb_rolling_restart_main.cpp \
+		-o ndb_rolling_restart_main.o
 
 ndb_rolling_restart.o: src/ndb_rolling_restart.hpp \
 		src/ndb_rolling_restart.cpp
@@ -98,7 +102,7 @@ ndb_rolling_restart.o: src/ndb_rolling_restart.hpp \
 echeck.o: tests/echeck.h tests/echeck.c
 	$(CC) -c $(CFLAGS) -Itests/ tests/echeck.c -o echeck.o
 
-test-sort-nodes: echeck.o ndb_rolling_restart \
+test-sort-nodes: echeck.o ndb_rolling_restart.o \
 		tests/test-sort-nodes.cpp
 	$(CXX) $(CXXFLAGS) -Itests/ -Isrc/ \
 		tests/test-sort-nodes.cpp \
@@ -111,7 +115,8 @@ test-sort-nodes: echeck.o ndb_rolling_restart \
 check-sort-nodes: test-sort-nodes
 	./test-sort-nodes
 
-check: check-sort-nodes
+check: ndb_rolling_restart \
+ check-sort-nodes
 
 tidy:
 	for FILE in \

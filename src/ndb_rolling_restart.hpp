@@ -13,8 +13,8 @@
  * Lesser General Public License for more details.
  */
 
-#ifndef NDB_ROLLING_RESTART_H
-#define NDB_ROLLING_RESTART_H 1
+#ifndef NDB_ROLLING_RESTART_HPP
+#define NDB_ROLLING_RESTART_HPP 1
 
 #include <mgmapi/mgmapi.h> // typedef struct ndb_mgm_handle * NdbMgmHandle;
 #include <ndbapi/NdbApi.hpp> // class Ndb_cluster_connection
@@ -56,4 +56,4 @@ void report_cluster_state(ndb_connection_context_s& ndb_ctx);
 
 int ndb_rolling_restart(ndb_connection_context_s& ndb_ctx);
 
-#endif /* NDB_ROLLING_RESTART_H */
+#endif /* NDB_ROLLING_RESTART_HPP */
