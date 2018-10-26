@@ -80,41 +80,29 @@ LDFLAGS=$(NDB_LDFLAGS)
 
 LDADD=$(NDB_LD_ADD)
 
-ndb_rolling_restart: binary_search.o ndb_rolling_restart.o \
+ndb_rolling_restart: ndb_rolling_restart.o \
 		src/ndb_rolling_restart.hpp src/ndb_rolling_restart_main.cpp
 	$(CXX) -c $(CXXFLAGS) src/ndb_rolling_restart_main.cpp \
 		-o ndb_rolling_restart_main.o
 	$(CXX) $(LDFLAGS) \
-		binary_search.o \
 		ndb_rolling_restart.o \
 		ndb_rolling_restart_main.o \
 		$(NDB_LIBS) \
 		-o ndb_rolling_restart $(LDADD)
 
-ndb_rolling_restart.o: src/binary_search.h src/ndb_rolling_restart.hpp \
+ndb_rolling_restart.o: src/ndb_rolling_restart.hpp \
 		src/ndb_rolling_restart.cpp
 	$(CXX) -c $(CXXFLAGS) src/ndb_rolling_restart.cpp \
 		-o ndb_rolling_restart.o
 
-binary_search.o: src/binary_search.h src/binary_search.c
-	$(CC) -c $(CFLAGS) -Isrc/ src/binary_search.c \
-		-o binary_search.o
-
 echeck.o: tests/echeck.h tests/echeck.c
 	$(CC) -c $(CFLAGS) -Itests/ tests/echeck.c -o echeck.o
-
-test-binary-search-int-basic: echeck.o binary_search.o
-	$(CC) $(CFLAGS) -Itests/ -Isrc/ \
-		echeck.o binary_search.o \
-		tests/test-binary-search-int-basic.c \
-		-o test-binary-search-int-basic
 
 test-sort-nodes: echeck.o ndb_rolling_restart \
 		tests/test-sort-nodes.cpp
 	$(CXX) $(CXXFLAGS) -Itests/ -Isrc/ \
 		tests/test-sort-nodes.cpp \
 		$(LDFLAGS) \
-		binary_search.o \
 		ndb_rolling_restart.o \
 		echeck.o \
 		$(NDB_LIBS) \
@@ -123,8 +111,7 @@ test-sort-nodes: echeck.o ndb_rolling_restart \
 check-sort-nodes: test-sort-nodes
 	./test-sort-nodes
 
-check: test-binary-search-int-basic
-	./test-binary-search-int-basic
+check: check-sort-nodes
 
 tidy:
 	for FILE in \

@@ -242,6 +242,9 @@ void sort_node_restarts(std::vector<restart_node_status_s>& nodes)
     //Build a multimap so that different index fall into different group
     //and then fetch one by one from each group
     assert(nodes.size());
+    std::sort(nodes.begin(), nodes.end(),
+         [](const restart_node_status_s & n1, const restart_node_status_s & n2)
+         { return n1.node_id < n2.node_id; });
     std::multimap<decltype(nodes.front().node_group), size_t> indexes;
     
     for (size_t i = 0; i < nodes.size(); ++i)
@@ -350,16 +353,7 @@ int ndb_rolling_restart(ndb_connection_context_s& ndb_ctx)
 
     assert(number_of_nodes == node_restarts.size());
 
-    if (false) {
-        // Testing suggests a possible bug here.
-        // For now, rather than sort, we'll rely upon
-        // the last_group check while looping over groups
-        std::sort(std::begin(node_restarts), 
-                  std::end(node_restarts),
-                  [](const restart_node_status_s& ns1, const restart_node_status_s& ns2){
-                      return ns1.node_group < ns2.node_group;
-                  });
-    }
+    sort_node_restarts(node_restarts);
 
     size_t restarted = 0;
     int last_group = -1;

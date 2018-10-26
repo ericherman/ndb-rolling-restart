@@ -4,29 +4,33 @@
 #include "ndb_rolling_restart.hpp"
 #include <string.h>
 
-int test_node_sorting(struct restart_node_status_s* nodes, size_t nodes_len,
-    struct restart_node_status_s* expected_nodes, int verbose)
+int test_node_sorting(std::vector<restart_node_status_s>& nodes,
+    const std::vector<restart_node_status_s>& expected_nodes, int verbose)
 {
     if (verbose) {
         printf("Nodes in input order:\n");
-        for (size_t i = 0; i < nodes_len; ++i) {
+        size_t i = 0;
+	for (const auto & node: nodes) {
             printf("Node[%02lu]: node_id:%d, group = %d\n", (unsigned long)i,
-                nodes[i].node_id, nodes[i].node_group);
+                node.node_id, node.node_group);
+	    ++i;
         }
     }
 
-    sort_node_restarts(nodes, nodes_len);
+    sort_node_restarts(nodes);
 
     if (verbose) {
         printf("Nodes in output order:\n");
-        for (size_t i = 0; i < nodes_len; ++i) {
+        size_t i = 0;
+	for (const auto & node: nodes) {
             printf("Node[%02lu]: node_id:%d, group = %d\n", (unsigned long)i,
-                nodes[i].node_id, nodes[i].node_group);
+                node.node_id, node.node_group);
+	    ++i;
         }
     }
 
     int failures = 0;
-    for (size_t i = 0; i < nodes_len; ++i) {
+    for (size_t i = 0; i < nodes.size(); ++i) {
         char buf[80];
         sprintf(buf, "node[%lu].node_id", (unsigned long)i);
         failures += check_int_m(nodes[i].node_id, expected_nodes[i].node_id,
@@ -47,138 +51,134 @@ void init_node_status(struct restart_node_status_s *node, int id, int group)
 
 int test_node_sorting_48(int verbose)
 {
-    struct restart_node_status_s nodes[48];
-    struct restart_node_status_s expected_nodes[48];
 
-    size_t i = 0;
+    std::vector<restart_node_status_s> nodes = {
+    restart_node_status_s { 47, 23, false },
+    restart_node_status_s { 20, 9, false },
+    restart_node_status_s { 39, 19, false },
+    restart_node_status_s { 26, 12, false },
+    restart_node_status_s { 6, 2, false },
+    restart_node_status_s { 37, 18, false },
+    restart_node_status_s { 7, 3, false },
+    restart_node_status_s { 29, 14, false },
+    restart_node_status_s { 40, 19, false },
+    restart_node_status_s { 25, 12, false },
+    restart_node_status_s { 36, 17, false },
+    restart_node_status_s { 1, 0, false },
+    restart_node_status_s { 8, 3, false },
+    restart_node_status_s { 9, 4, false },
+    restart_node_status_s { 30, 14, false },
+    restart_node_status_s { 14, 6, false },
+    restart_node_status_s { 31, 15, false },
+    restart_node_status_s { 13, 6, false },
+    restart_node_status_s { 21, 10, false },
+    restart_node_status_s { 16, 7, false },
+    restart_node_status_s { 42, 20, false },
+    restart_node_status_s { 3, 1, false },
+    restart_node_status_s { 24, 11, false },
+    restart_node_status_s { 5, 2, false },
+    restart_node_status_s { 2, 0, false },
+    restart_node_status_s { 18, 8, false },
+    restart_node_status_s { 11, 5, false },
+    restart_node_status_s { 27, 13, false },
+    restart_node_status_s { 33, 16, false },
+    restart_node_status_s { 44, 21, false },
+    restart_node_status_s { 38, 18, false },
+    restart_node_status_s { 15, 7, false },
+    restart_node_status_s { 10, 4, false },
+    restart_node_status_s { 32, 15, false },
+    restart_node_status_s { 4, 1, false },
+    restart_node_status_s { 46, 22, false },
+    restart_node_status_s { 48, 23, false },
+    restart_node_status_s { 43, 21, false },
+    restart_node_status_s { 28, 13, false },
+    restart_node_status_s { 41, 20, false },
+    restart_node_status_s { 35, 17, false },
+    restart_node_status_s { 22, 10, false },
+    restart_node_status_s { 12, 5, false },
+    restart_node_status_s { 19, 9, false },
+    restart_node_status_s { 34, 16, false },
+    restart_node_status_s { 45, 22, false },
+    restart_node_status_s { 17, 8, false },
+    restart_node_status_s { 23, 11, false }
+    };
 
-    memset(nodes, 0, sizeof(struct restart_node_status_s) * 48);
-    memset(expected_nodes, 0, sizeof(struct restart_node_status_s) * 48);
 
-    init_node_status(&(nodes[i++]), 47, 23);
-    init_node_status(&(nodes[i++]), 20, 9);
-    init_node_status(&(nodes[i++]), 39, 19);
-    init_node_status(&(nodes[i++]), 26, 12);
-    init_node_status(&(nodes[i++]), 6, 2);
-    init_node_status(&(nodes[i++]), 37, 18);
-    init_node_status(&(nodes[i++]), 7, 3);
-    init_node_status(&(nodes[i++]), 29, 14);
-    init_node_status(&(nodes[i++]), 40, 19);
-    init_node_status(&(nodes[i++]), 25, 12);
-    init_node_status(&(nodes[i++]), 36, 17);
-    init_node_status(&(nodes[i++]), 1, 0);
-    init_node_status(&(nodes[i++]), 8, 3);
-    init_node_status(&(nodes[i++]), 9, 4);
-    init_node_status(&(nodes[i++]), 30, 14);
-    init_node_status(&(nodes[i++]), 14, 6);
-    init_node_status(&(nodes[i++]), 31, 15);
-    init_node_status(&(nodes[i++]), 13, 6);
-    init_node_status(&(nodes[i++]), 21, 10);
-    init_node_status(&(nodes[i++]), 16, 7);
-    init_node_status(&(nodes[i++]), 42, 20);
-    init_node_status(&(nodes[i++]), 3, 1);
-    init_node_status(&(nodes[i++]), 24, 11);
-    init_node_status(&(nodes[i++]), 5, 2);
-    init_node_status(&(nodes[i++]), 2, 0);
-    init_node_status(&(nodes[i++]), 18, 8);
-    init_node_status(&(nodes[i++]), 11, 5);
-    init_node_status(&(nodes[i++]), 27, 13);
-    init_node_status(&(nodes[i++]), 33, 16);
-    init_node_status(&(nodes[i++]), 44, 21);
-    init_node_status(&(nodes[i++]), 38, 18);
-    init_node_status(&(nodes[i++]), 15, 7);
-    init_node_status(&(nodes[i++]), 10, 4);
-    init_node_status(&(nodes[i++]), 32, 15);
-    init_node_status(&(nodes[i++]), 4, 1);
-    init_node_status(&(nodes[i++]), 46, 22);
-    init_node_status(&(nodes[i++]), 48, 23);
-    init_node_status(&(nodes[i++]), 43, 21);
-    init_node_status(&(nodes[i++]), 28, 13);
-    init_node_status(&(nodes[i++]), 41, 20);
-    init_node_status(&(nodes[i++]), 35, 17);
-    init_node_status(&(nodes[i++]), 22, 10);
-    init_node_status(&(nodes[i++]), 12, 5);
-    init_node_status(&(nodes[i++]), 19, 9);
-    init_node_status(&(nodes[i++]), 34, 16);
-    init_node_status(&(nodes[i++]), 45, 22);
-    init_node_status(&(nodes[i++]), 17, 8);
-    init_node_status(&(nodes[i++]), 23, 11);
+    std::vector<restart_node_status_s> expected_nodes = {
+    restart_node_status_s { 1, 0, false },
+    restart_node_status_s { 3, 1, false },
+    restart_node_status_s { 5, 2, false },
+    restart_node_status_s { 7, 3, false },
+    restart_node_status_s { 9, 4, false },
+    restart_node_status_s { 11, 5, false },
+    restart_node_status_s { 13, 6, false },
+    restart_node_status_s { 15, 7, false },
+    restart_node_status_s { 17, 8, false },
+    restart_node_status_s { 19, 9, false },
+    restart_node_status_s { 21, 10, false },
+    restart_node_status_s { 23, 11, false },
+    restart_node_status_s { 25, 12, false },
+    restart_node_status_s { 27, 13, false },
+    restart_node_status_s { 29, 14, false },
+    restart_node_status_s { 31, 15, false },
+    restart_node_status_s { 33, 16, false },
+    restart_node_status_s { 35, 17, false },
+    restart_node_status_s { 37, 18, false },
+    restart_node_status_s { 39, 19, false },
+    restart_node_status_s { 41, 20, false },
+    restart_node_status_s { 43, 21, false },
+    restart_node_status_s { 45, 22, false },
+    restart_node_status_s { 47, 23, false },
+    restart_node_status_s { 2, 0, false },
+    restart_node_status_s { 4, 1, false },
+    restart_node_status_s { 6, 2, false },
+    restart_node_status_s { 8, 3, false },
+    restart_node_status_s { 10, 4, false },
+    restart_node_status_s { 12, 5, false },
+    restart_node_status_s { 14, 6, false },
+    restart_node_status_s { 16, 7, false },
+    restart_node_status_s { 18, 8, false },
+    restart_node_status_s { 20, 9, false },
+    restart_node_status_s { 22, 10, false },
+    restart_node_status_s { 24, 11, false },
+    restart_node_status_s { 26, 12, false },
+    restart_node_status_s { 28, 13, false },
+    restart_node_status_s { 30, 14, false },
+    restart_node_status_s { 32, 15, false },
+    restart_node_status_s { 34, 16, false },
+    restart_node_status_s { 36, 17, false },
+    restart_node_status_s { 38, 18, false },
+    restart_node_status_s { 40, 19, false },
+    restart_node_status_s { 42, 20, false },
+    restart_node_status_s { 44, 21, false },
+    restart_node_status_s { 46, 22, false },
+    restart_node_status_s { 48, 23, false }
+    };
 
-    i = 0;
-    init_node_status(&(expected_nodes[i++]), 1, 0);
-    init_node_status(&(expected_nodes[i++]), 3, 1);
-    init_node_status(&(expected_nodes[i++]), 5, 2);
-    init_node_status(&(expected_nodes[i++]), 7, 3);
-    init_node_status(&(expected_nodes[i++]), 9, 4);
-    init_node_status(&(expected_nodes[i++]), 13, 6);
-    init_node_status(&(expected_nodes[i++]), 15, 7);
-    init_node_status(&(expected_nodes[i++]), 17, 8);
-    init_node_status(&(expected_nodes[i++]), 19, 9);
-    init_node_status(&(expected_nodes[i++]), 21, 10);
-    init_node_status(&(expected_nodes[i++]), 23, 11);
-    init_node_status(&(expected_nodes[i++]), 25, 12);
-    init_node_status(&(expected_nodes[i++]), 27, 13);
-    init_node_status(&(expected_nodes[i++]), 29, 14);
-    init_node_status(&(expected_nodes[i++]), 31, 15);
-    init_node_status(&(expected_nodes[i++]), 33, 16);
-    init_node_status(&(expected_nodes[i++]), 35, 17);
-    init_node_status(&(expected_nodes[i++]), 37, 18);
-    init_node_status(&(expected_nodes[i++]), 39, 19);
-    init_node_status(&(expected_nodes[i++]), 41, 20);
-    init_node_status(&(expected_nodes[i++]), 43, 21);
-    init_node_status(&(expected_nodes[i++]), 45, 22);
-    init_node_status(&(expected_nodes[i++]), 47, 23);
-    init_node_status(&(expected_nodes[i++]), 2, 0);
-    init_node_status(&(expected_nodes[i++]), 4, 1);
-    init_node_status(&(expected_nodes[i++]), 6, 2);
-    init_node_status(&(expected_nodes[i++]), 8, 3);
-    init_node_status(&(expected_nodes[i++]), 10, 4);
-    init_node_status(&(expected_nodes[i++]), 12, 5);
-    init_node_status(&(expected_nodes[i++]), 14, 6);
-    init_node_status(&(expected_nodes[i++]), 16, 7);
-    init_node_status(&(expected_nodes[i++]), 18, 8);
-    init_node_status(&(expected_nodes[i++]), 20, 9);
-    init_node_status(&(expected_nodes[i++]), 22, 10);
-    init_node_status(&(expected_nodes[i++]), 24, 11);
-    init_node_status(&(expected_nodes[i++]), 26, 12);
-    init_node_status(&(expected_nodes[i++]), 28, 13);
-    init_node_status(&(expected_nodes[i++]), 30, 14);
-    init_node_status(&(expected_nodes[i++]), 32, 15);
-    init_node_status(&(expected_nodes[i++]), 34, 16);
-    init_node_status(&(expected_nodes[i++]), 36, 17);
-    init_node_status(&(expected_nodes[i++]), 38, 18);
-    init_node_status(&(expected_nodes[i++]), 40, 19);
-    init_node_status(&(expected_nodes[i++]), 42, 20);
-    init_node_status(&(expected_nodes[i++]), 44, 21);
-    init_node_status(&(expected_nodes[i++]), 46, 22);
-    init_node_status(&(expected_nodes[i++]), 48, 23);
-
-    return test_node_sorting(nodes, 48, expected_nodes, verbose);
+    return test_node_sorting(nodes, expected_nodes, verbose);
 }
 
 int test_node_sorting_6(int verbose)
 {
-    struct restart_node_status_s nodes[6];
-    struct restart_node_status_s expected_nodes[6];
+    std::vector<restart_node_status_s> nodes = {
+    restart_node_status_s { 2, 0, false},
+    restart_node_status_s { 3, 0, false},
+    restart_node_status_s { 4, 1, false},
+    restart_node_status_s { 5, 1, false},
+    restart_node_status_s { 6, 2, false},
+    restart_node_status_s { 7, 2, false}
+    };
 
-    memset(nodes, 0, sizeof(struct restart_node_status_s) * 6);
-    memset(expected_nodes, 0, sizeof(struct restart_node_status_s) * 6);
+    std::vector<restart_node_status_s> expected_nodes = {
+    restart_node_status_s { 2, 0, false},
+    restart_node_status_s { 4, 1, false},
+    restart_node_status_s { 6, 2, false},
+    restart_node_status_s { 3, 0, false},
+    restart_node_status_s { 5, 1, false},
+    restart_node_status_s { 7, 2, false}
+    };
 
-    init_node_status(&(nodes[0]), 2, 0);
-    init_node_status(&(nodes[1]), 3, 0);
-    init_node_status(&(nodes[2]), 4, 1);
-    init_node_status(&(nodes[3]), 5, 1);
-    init_node_status(&(nodes[4]), 6, 2);
-    init_node_status(&(nodes[5]), 7, 2);
-
-    init_node_status(&(expected_nodes[0]), 2, 0);
-    init_node_status(&(expected_nodes[1]), 4, 1);
-    init_node_status(&(expected_nodes[2]), 6, 2);
-    init_node_status(&(expected_nodes[3]), 3, 0);
-    init_node_status(&(expected_nodes[4]), 5, 1);
-    init_node_status(&(expected_nodes[5]), 7, 2);
-
-    return test_node_sorting(nodes, 6, expected_nodes, verbose);
+    return test_node_sorting(nodes, expected_nodes, verbose);
 }
 
 int main(int argc, char** argv)
