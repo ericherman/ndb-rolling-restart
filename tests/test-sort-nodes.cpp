@@ -49,7 +49,6 @@ int test_node_sorting(std::vector<restart_node_status_s>& nodes,
 
 int test_node_sorting_48(int verbose)
 {
-
     std::vector<restart_node_status_s> nodes = {
         restart_node_status_s{ 47, 23, false },
         restart_node_status_s{ 20, 9, false },
@@ -178,6 +177,115 @@ int test_node_sorting_6(int verbose)
     return test_node_sorting(nodes, expected_nodes, verbose);
 }
 
+int test_node_sorting_16_by_3(int verbose)
+{
+    std::vector<restart_node_status_s> nodes = {
+        restart_node_status_s{ 2, 0, false },
+        restart_node_status_s{ 3, 0, false },
+        restart_node_status_s{ 4, 0, false },
+        restart_node_status_s{ 5, 1, false },
+        restart_node_status_s{ 6, 1, false },
+        restart_node_status_s{ 7, 1, false },
+        restart_node_status_s{ 8, 2, false },
+        restart_node_status_s{ 9, 2, false },
+        restart_node_status_s{ 10, 2, false },
+        restart_node_status_s{ 11, 3, false },
+        restart_node_status_s{ 12, 3, false },
+        restart_node_status_s{ 13, 3, false },
+        restart_node_status_s{ 14, 4, false },
+        restart_node_status_s{ 15, 4, false },
+        restart_node_status_s{ 16, 4, false },
+        restart_node_status_s{ 17, 5, false },
+        restart_node_status_s{ 18, 5, false },
+        restart_node_status_s{ 19, 5, false },
+        restart_node_status_s{ 20, 6, false },
+        restart_node_status_s{ 21, 6, false },
+        restart_node_status_s{ 22, 6, false },
+        restart_node_status_s{ 23, 7, false },
+        restart_node_status_s{ 24, 7, false },
+        restart_node_status_s{ 25, 7, false },
+        restart_node_status_s{ 26, 8, false },
+        restart_node_status_s{ 27, 8, false },
+        restart_node_status_s{ 28, 8, false },
+        restart_node_status_s{ 29, 9, false },
+        restart_node_status_s{ 30, 9, false },
+        restart_node_status_s{ 31, 9, false },
+        restart_node_status_s{ 32, 10, false },
+        restart_node_status_s{ 33, 10, false },
+        restart_node_status_s{ 34, 10, false },
+        restart_node_status_s{ 35, 11, false },
+        restart_node_status_s{ 36, 11, false },
+        restart_node_status_s{ 37, 11, false },
+        restart_node_status_s{ 38, 12, false },
+        restart_node_status_s{ 39, 12, false },
+        restart_node_status_s{ 40, 12, false },
+        restart_node_status_s{ 41, 13, false },
+        restart_node_status_s{ 42, 13, false },
+        restart_node_status_s{ 43, 13, false },
+        restart_node_status_s{ 44, 14, false },
+        restart_node_status_s{ 45, 14, false },
+        restart_node_status_s{ 46, 14, false },
+        restart_node_status_s{ 47, 15, false },
+        restart_node_status_s{ 48, 15, false },
+        restart_node_status_s{ 49, 15, false }
+    };
+
+    std::vector<restart_node_status_s> expected_nodes = {
+        restart_node_status_s{ 4, 0, false },
+        restart_node_status_s{ 7, 1, false },
+        restart_node_status_s{ 10, 2, false },
+        restart_node_status_s{ 13, 3, false },
+        restart_node_status_s{ 16, 4, false },
+        restart_node_status_s{ 19, 5, false },
+        restart_node_status_s{ 22, 6, false },
+        restart_node_status_s{ 25, 7, false },
+        restart_node_status_s{ 28, 8, false },
+        restart_node_status_s{ 31, 9, false },
+        restart_node_status_s{ 34, 10, false },
+        restart_node_status_s{ 37, 11, false },
+        restart_node_status_s{ 40, 12, false },
+        restart_node_status_s{ 43, 13, false },
+        restart_node_status_s{ 46, 14, false },
+        restart_node_status_s{ 49, 15, false },
+
+        restart_node_status_s{ 3, 0, false },
+        restart_node_status_s{ 6, 1, false },
+        restart_node_status_s{ 9, 2, false },
+        restart_node_status_s{ 12, 3, false },
+        restart_node_status_s{ 15, 4, false },
+        restart_node_status_s{ 18, 5, false },
+        restart_node_status_s{ 21, 6, false },
+        restart_node_status_s{ 24, 7, false },
+        restart_node_status_s{ 27, 8, false },
+        restart_node_status_s{ 30, 9, false },
+        restart_node_status_s{ 33, 10, false },
+        restart_node_status_s{ 36, 11, false },
+        restart_node_status_s{ 39, 12, false },
+        restart_node_status_s{ 42, 13, false },
+        restart_node_status_s{ 45, 14, false },
+        restart_node_status_s{ 48, 15, false },
+
+        restart_node_status_s{ 2, 0, false },
+        restart_node_status_s{ 5, 1, false },
+        restart_node_status_s{ 8, 2, false },
+        restart_node_status_s{ 11, 3, false },
+        restart_node_status_s{ 14, 4, false },
+        restart_node_status_s{ 17, 5, false },
+        restart_node_status_s{ 20, 6, false },
+        restart_node_status_s{ 23, 7, false },
+        restart_node_status_s{ 26, 8, false },
+        restart_node_status_s{ 29, 9, false },
+        restart_node_status_s{ 32, 10, false },
+        restart_node_status_s{ 35, 11, false },
+        restart_node_status_s{ 38, 12, false },
+        restart_node_status_s{ 41, 13, false },
+        restart_node_status_s{ 44, 14, false },
+        restart_node_status_s{ 47, 15, false }
+    };
+
+    return test_node_sorting(nodes, expected_nodes, verbose);
+}
+
 int main(int argc, char** argv)
 {
     int verbose = argc > 1 ? atoi(argv[1]) : 0;
@@ -186,6 +294,7 @@ int main(int argc, char** argv)
 
     failures += test_node_sorting_6(verbose);
     failures += test_node_sorting_48(verbose);
+    failures += test_node_sorting_16_by_3(verbose);
 
     return check_status(failures);
 }
